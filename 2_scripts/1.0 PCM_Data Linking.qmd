@@ -1,0 +1,456 @@
+---
+title: "1.0 PCM_Data Linking"
+author: Jiacheng Chen
+format: html
+editor: visual
+date: 21 June 2023
+---
+
+## Quarto
+
+Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+
+## Running Code
+
+When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+
+## Load necessary paks
+
+```{r}
+library(haven)
+library(dplyr)
+library(epiR)          # make epi tables
+```
+
+## Import the CLSA Datasets
+
+```{r}
+# CLSA Covid Study Data
+CLSA_Covid<-read.csv("~/CLSA/2209005_McGill_ARussell_Covid/2209005_McGill_ARussell_Covid_Combined_v1-1.csv")
+
+# CLSA Covid Antibody Data
+CLSA_Antibody <- read.csv("~/CLSA/2209005_McGill_ARussell_Covid/2209005_McGill_ARussell_Covid_Antibody_Combined_NoIndigenousIdentifiers_v1.csv")
+## This one has fewer participants, compare to the CLSA_Covid dataset
+```
+
+## Check the CLSA Covid Datasets
+
+#### Demographic Part
+
+```{r}
+## Age
+## Participant age (first completed COVID-19 interview)
+str(CLSA_Covid$AGE_NMBR_COVID)
+hist(CLSA_Covid$AGE_NMBR_COVID)
+# Most Participants are aged from 55 to 75.
+
+## Sex
+## Sex at birth reported at baseline
+str(CLSA_Covid$SEX_CLSA)
+table(CLSA_Covid$SEX_CLSA, useNA = 'ifany')
+## F/M ~= 1:1
+
+## Race/Ethnicity
+## Education
+## Income
+## Insurance Coverage
+
+# Those four variables are missing, probably we can find those in other dataset
+```
+
+#### More info: https://www150.statcan.gc.ca/n1/pub/92-195-x/2011001/geo/cma-rmr/def-eng.htm
+
+## Which cohort?
+
+```{r}
+table(CLSA_Covid$cohort, useNA = 'ifany')
+# beware we have tracking cohort in this dataset
+```
+
+## Geo Location Variables
+
+```{r}
+## FSA
+str(CLSA_Covid$FSA_COVID)
+table(CLSA_Covid$FSA_COVID[CLSA_Covid$PROV_COVID==48])
+
+## Province code
+str(CLSA_Covid$PROV_COVID)
+table(CLSA_Covid$PROV_COVID, useNA = 'ifany')
+# the code 48 means Alberta, N=2894
+
+## Urban/Rural Indentifier:
+str(CLSA_Covid$URBAN_RURAL_COVID)
+table(CLSA_Covid$URBAN_RURAL_COVID, useNA = 'ifany')
+# 0 = Rural
+# 1 = Urban Core
+# 2 = Urban Fringe
+# 4 = Urban areas out of CMA/CA
+# 6 = Secondary Cores
+# 9 = DA Only
+
+# Cross-tab showing distribution of each Urban category, across all provinces
+table(CLSA_m$URBAN_RURAL_COVID, CLSA_m$PROV_COVID, useNA = 'ifany')
+# 48 is AB
+
+# Population Center and Pop Density Var - Those two might have addi info
+## Pop cntr
+str(CLSA_Covid$POP_CNTR_COVID)
+table(CLSA_Covid$POP_CNTR_COVID, useNA = 'ifany')
+# Cross-tab with Urban_Rural
+table(CLSA_Covid$POP_CNTR_COVID, CLSA_Covid$URBAN_RURAL_COVID, useNA = 'ifany')
+
+## Pop density
+str(CLSA_Covid$POP_DENSITY_COVID)
+hist(CLSA_Covid$POP_DENSITY_COVID[CLSA_Covid$POP_DENSITY_COVID>0], breaks = 30)
+boxplot(CLSA_Covid$POP_DENSITY_COVID[CLSA_Covid$POP_DENSITY_COVID>0])
+
+nrow(CLSA_Covid[CLSA_Covid$POP_DENSITY_COVID==0,]) # N=168
+```
+## Load FSA location and distance data
+```{r}
+# The code for travel distance estimation is 1.1 Travel Distance Est.qmd
+FSA_Center_small<-load("~/AB_Geo/FSA_Center_fixed.RData")
+```
+
+
+# CLSA Antibody Dataset
+
+## Antibody
+
+```{r}
+# Anti-N
+str(CLSA_Antibody$SER_NUCLEOCAPSID_COV)
+table(CLSA_Antibody$SER_NUCLEOCAPSID_COV, useNA = 'ifany')
+# About 4% positive rate
+# -99999 = skip
+# -88888 = missing
+# Recode those two to NA
+
+# Anti-S
+table(CLSA_Antibody$SER_SPIKE_COV, useNA = 'ifany')
+# About 46% positive, beware this % is infected + vaccinated
+
+# The Covid-19 Infection Status based on the 2-by-2 table of Anti-N & Anti-S
+table(CLSA_Antibody$SER_ABRSLT_COV, useNA = 'ifany')
+
+# Cross-tab anti-N & anto-S
+table(CLSA_Antibody$SER_SPIKE_COV, CLSA_Antibody$SER_NUCLEOCAPSID_COV, useNA = 'ifany')
+# Anit-N + only: prior Cov infection only
+# Anti-S + only: prior Cov infection, vaccination, or both
+# Both +       : prior Cov infection or both
+# Both -       : none
+```
+
+## Sampling Methods: Venous or Dry Blood Spot
+
+```{r}
+str(CLSA_Antibody$SER_ADM_COV)
+table(CLSA_Antibody$SER_ADM_COV, useNA = 'ifany')
+# 1 = Venous
+# 2 = Dry Blood Spot
+
+str(CLSA_Antibody$SER_ADM_COV)
+table(CLSA_Antibody$SER_ADM_COV, useNA = 'ifany')
+```
+
+## Merging the datasets, only selecting useful variables.
+
+```{r}
+# Create subsets for each one:
+
+# CLSA_Covid data
+CLSA_Covid_small<-select(CLSA_Covid, entity_id,AGE_NMBR_COVID, SEX_CLSA,
+                                PROV_COVID,
+                                FSA_COVID,
+                                URBAN_RURAL_COVID,
+                                CCC_LTC_ASTHM_COVID,
+                                CCC_LTC_COPD_COVID,
+                                CCC_LTC_OTLD_COVID,
+                                CCC_LTC_DIA_COVID,
+                                CCC_LTC_HBP_COVID,
+                                CCC_LTC_HEART_COVID,
+                                CCC_LTC_CANC_COVID,
+                                CCC_LTC_FAIL_COVID,
+                                CCC_LTC_AUTOIMD_COVID,
+                                CCC_LTC_DRPNEU_COVID,
+                                CCC_LTC_HIV_COVID,
+                                CCC_LTC_NONE_COVID,
+                                CCC_TRANSP_COVID,
+                                CCC_CHEMO_COVID,
+                                FUL_SIT1H_COVX,
+                                FUL_SIT1HDG_COVX,
+                                FUL_FSTR_COVX,
+                                FUL_FSTRDG_COVX,
+                                FUL_WK23B_COVX,
+                                FUL_WK23BDG_COVX,
+                                DEP_CESD10_COVX,
+                                GAD_NBRMIS_COVX)
+
+## CLSA Antibody Data
+CLSA_Antibody_small<-select(CLSA_Antibody, entity_id,
+                            SER_ETHN_WH_COV,
+                            SER_ETHN_SA_COV,
+                            SER_ETHN_ZH_COV,
+                            SER_ETHN_BL_COV,
+                            SER_ETHN_FP_COV,
+                            SER_ETHN_LA_COV,
+                            SER_ETHN_AR_COV,
+                            SER_ETHN_SE_COV,
+                            SER_ETHN_WA_COV,
+                            SER_ETHN_KO_COV,
+                            SER_ETHN_JA_COV,
+                            SER_ETHN_OTSP_COV,
+                            SER_ETHN_DK_NA_COV,
+                            SER_ETHN_REFUSED_COV,
+                            SER_EDU_COV,
+                            SER_FAMPH_COV,
+                            SER_NUCLEOCAPSID_COV,
+                            SER_SPIKE_COV,
+                            SER_ABRSLT_COV,
+                            SER_ADM_COV)
+
+# looks good, now merge those two
+CLSA_m<-merge(CLSA_Covid_small, CLSA_Antibody_small, by = "entity_id", all=FALSE)
+# We got N=14437 Obs in the merged dataset
+
+# Create Alberta Subset
+CLSA_mAB<-CLSA_m[CLSA_m$PROV_COVID==48,]
+# N=1486 in Alberta
+
+# Add Travel Distance Var
+FSA_Center_fm<-select(FSA_Center_small, CFSAUID, Gmap_dist, fix_ind)
+CLSA_mAB<-merge(CLSA_mAB, FSA_Center_fm, by.x = "FSA_COVID", by.y = "CFSAUID",
+                all.x = TRUE)
+
+```
+
+## Clean the merged dataset
+
+```{r}
+## The Anti-N
+CLSA_mAB$SER_NUCLEOCAPSID_COV[CLSA_mAB$SER_NUCLEOCAPSID_COV<0]<-NA
+table(CLSA_mAB$SER_NUCLEOCAPSID_COV, useNA = 'ifany')
+
+## The VBS vs DBS
+CLSA_mAB$SER_ADM_COV[CLSA_mAB$SER_ADM_COV==2]<-0
+
+# Age Var - numeric, good
+# Gender var - two categories, directly useable
+
+# Urban/Rural categories
+table(CLSA_mAB$URBAN_RURAL_COVID, useNA = 'ifany')
+CLSA_mAB$URBAN_RURAL_COVID[CLSA_mAB$URBAN_RURAL_COVID==-88888]<-NA
+
+## Education
+table(CLSA_mAB$SER_EDU_COV, useNA = 'ifany')
+CLSA_mAB$SER_EDU_COV[CLSA_mAB$SER_EDU_COV %in% c(-88888,98,99)]<-NA
+
+## Primary Care
+table(CLSA_mAB$SER_FAMPH_COV, useNA = 'ifany')
+CLSA_mAB$SER_FAMPH_COV[CLSA_mAB$SER_FAMPH_COV %in% c(-88888,98,99)]<-NA
+
+## Physical Health
+table(CLSA_mAB$CCC_LTC_NONE_COVID, useNA = 'ifany')
+## So all paticipants has some minor health conditions, considering their age it make sense
+
+## Mobility
+#### Stand up
+table(CLSA_mAB$FUL_SIT1H_COVX, useNA = 'ifany')
+CLSA_mAB$FUL_SIT1H_COVX[CLSA_mAB$FUL_SIT1H_COVX %in% c(-88888,3,9,8)]<-NA
+
+#### Walk up/down stairs
+table(CLSA_mAB$FUL_FSTR_COVX, useNA = 'ifany')
+CLSA_mAB$FUL_FSTR_COVX[CLSA_mAB$FUL_FSTR_COVX %in% c(-88888,3,9,8)]<-NA
+
+#### Walk to neighborhood
+table(CLSA_mAB$FUL_WK23B_COVX, useNA = 'ifany')
+CLSA_mAB$FUL_WK23B_COVX[CLSA_mAB$FUL_WK23B_COVX %in% c(-88888,3,9,8)]<-NA
+
+## Mental Health
+#### Depression Scale
+table(CLSA_mAB$DEP_CESD10_COVX, useNA = 'ifany')
+CLSA_mAB$DEP_CESD10_COVX[CLSA_mAB$DEP_CESD10_COVX %in% c(-77772, -77771)]<-NA
+
+#### Anxiety Scale
+table(CLSA_mAB$GAD_NBRMIS_COVX, useNA = 'ifany')
+
+## Save the dataset
+save(CLSA_mAB, file = "~/CLSA/private/CLSA_Alberta_PSM.RData")
+```
+
+## Histogram: Show the distribution of Traveling Distance
+```{r}
+## First, show the dist in one group
+hist(CLSA_mAB$Gmap_dist/1000, breaks = 20)
+# Looks like most of the participants live within 50km of the DCS at Calgary
+
+## Then, stratified by VBS vs DBS
+## VBS
+hist(CLSA_mAB[CLSA_mAB$SER_ADM_COV==1,]$Gmap_dist/1000, breaks = 20)
+# Looks like the cutting point is ~50 km
+## DBS
+hist(CLSA_mAB[CLSA_mAB$SER_ADM_COV==0,]$Gmap_dist/1000, breaks = 20)
+
+## VBS with dist <=50
+table(CLSA_mAB[CLSA_mAB$Gmap_dist/1000<=50,]$SER_ADM_COV, useNA = 'ifany')
+```
+
+
+## Now built a logistic regression model, using age, sex and urbanicity
+
+```{r}
+lm01<-glm(SER_ADM_COV~AGE_NMBR_COVID + SEX_CLSA +
+                      relevel(as.factor(URBAN_RURAL_COVID),ref = "0"),
+    data=CLSA_mAB, family = binomial(link = "logit"))
+summary(lm01)
+
+# Same model, but use Urban Core (=1) as reference
+lm01.a<-glm(SER_ADM_COV~AGE_NMBR_COVID + SEX_CLSA +
+                      relevel(as.factor(URBAN_RURAL_COVID),ref = "1"),
+    data=CLSA_mAB, family = binomial(link = "logit"))
+summary(lm01.a)
+```
+
+## Lm02, logistic regression model replace urban/rural with traveling dist
+## This model is only useful when dist<=50, for those lives further they will use DBS only
+```{r}
+# Only includes those <50 km
+lm02<-glm(SER_ADM_COV~AGE_NMBR_COVID + SEX_CLSA + Gmap_dist,
+    data=CLSA_mAB[CLSA_mAB$Gmap_dist/1000<=50,], family = binomial(link = "logit"))
+summary(lm02)
+
+# 10-40 km
+lm02.a<-glm(SER_ADM_COV~AGE_NMBR_COVID + SEX_CLSA + Gmap_dist,
+    data=CLSA_mAB[CLSA_mAB$Gmap_dist/1000<=40 & 
+                  CLSA_mAB$Gmap_dist/1000>10,], family = binomial(link = "logit"))
+summary(lm02.a)
+
+# Try Urban_Rural
+lm02.b<-glm(SER_ADM_COV~AGE_NMBR_COVID + SEX_CLSA +
+                      relevel(as.factor(URBAN_RURAL_COVID),ref = "1"),
+    data=CLSA_mAB[CLSA_mAB$Gmap_dist/1000<=50,], family = binomial(link = "logit"))
+summary(lm02.b)
+```
+
+
+```{r}
+# Let's see hot ROC looks like (prop be bad)
+#ROC-curve using pROC library
+library(pROC)
+
+
+# roc_score=roc(CLSA_m$SER_ADM_COV, lm01)
+# plot(roc_score ,main ="ROC curve -- Logistic Regression ")
+```
+
+## An unadjusted Comparison - tables
+## Required by Alton, after meeting on 06/26
+```{r}
+# Create a subset for <50 km
+CLSA_mAB50<-CLSA_mAB[CLSA_mAB$Gmap_dist/1000<=50,]
+
+# Age
+var.test(CLSA_mAB50$AGE_NMBR_COVID~CLSA_mAB50$SER_ADM_COV)
+t.test(CLSA_mAB50$AGE_NMBR_COVID~CLSA_mAB50$SER_ADM_COV, var.equal=TRUE)
+
+summary(CLSA_mAB50$AGE_NMBR_COVID[CLSA_mAB50$SER_ADM_COV==0])
+sd(CLSA_mAB50$AGE_NMBR_COVID[CLSA_mAB50$SER_ADM_COV==0], na.rm = T)
+summary(CLSA_mAB50$AGE_NMBR_COVID[CLSA_mAB50$SER_ADM_COV==1])
+sd(CLSA_mAB50$AGE_NMBR_COVID[CLSA_mAB50$SER_ADM_COV==1], na.rm = T)
+```
+## Gmap Dist
+```{r}
+var.test(CLSA_mAB50$Gmap_dist~CLSA_mAB50$SER_ADM_COV)
+t.test(CLSA_mAB50$Gmap_dist~CLSA_mAB50$SER_ADM_COV, var.equal=TRUE)
+sd(CLSA_mAB50$Gmap_dist[CLSA_mAB50$SER_ADM_COV==0])
+sd(CLSA_mAB50$Gmap_dist[CLSA_mAB50$SER_ADM_COV==1])
+```
+## Depression 10-scale
+```{r}
+var.test(DEP_CESD10_COVX~SER_ADM_COV, 
+         data = CLSA_mAB50[CLSA_mAB50$DEP_CESD10_COVX>=0,])
+t.test(DEP_CESD10_COVX~SER_ADM_COV, 
+        data = CLSA_mAB50[CLSA_mAB50$DEP_CESD10_COVX>=0,], var.equal=FALSE)
+sd(CLSA_mAB50$DEP_CESD10_COVX[CLSA_mAB50$SER_ADM_COV==0 &
+                              CLSA_mAB50$DEP_CESD10_COVX>=0], na.rm = T)
+sd(CLSA_mAB50$DEP_CESD10_COVX[CLSA_mAB50$SER_ADM_COV==1 &
+                              CLSA_mAB50$DEP_CESD10_COVX>=0], na.rm = T)
+
+```
+## Anxiety Scale
+```{r}
+var.test(GAD_NBRMIS_COVX~SER_ADM_COV, 
+         data = CLSA_mAB50[CLSA_mAB50$GAD_NBRMIS_COVX>=0,])
+t.test(GAD_NBRMIS_COVX~SER_ADM_COV, 
+        data = CLSA_mAB50[CLSA_mAB50$GAD_NBRMIS_COVX>=0,], var.equal=FALSE)
+sd(CLSA_mAB50$GAD_NBRMIS_COVX[CLSA_mAB50$SER_ADM_COV==0 &
+                              CLSA_mAB50$GAD_NBRMIS_COVX>=0], na.rm = T)
+sd(CLSA_mAB50$GAD_NBRMIS_COVX[CLSA_mAB50$SER_ADM_COV==1 &
+                              CLSA_mAB50$GAD_NBRMIS_COVX>=0], na.rm = T)
+
+```
+
+
+## Making prop tables
+```{r}
+# SEX
+table(CLSA_mAB50$SEX_CLSA, CLSA_mAB50$SER_ADM_COV)
+prop.table(table(CLSA_mAB50$SEX_CLSA, CLSA_mAB50$SER_ADM_COV),
+           margin = 2)
+chisq.test(table(CLSA_mAB50$SEX_CLSA, CLSA_mAB50$SER_ADM_COV))
+
+# Urban_rural
+t1<-table(CLSA_mAB50$URBAN_RURAL_COVID, CLSA_mAB50$SER_ADM_COV)
+t1
+round(prop.table(t1, margin = 2), digits = 4)
+chisq.test(t1)
+
+# Education
+t1<-table(CLSA_mAB50$SER_EDU_COV, CLSA_mAB50$SER_ADM_COV)
+t1
+round(prop.table(t1, margin = 2), digits = 4)
+chisq.test(t1)
+
+# Mobility
+#### Stand up
+table(CLSA_mAB50$FUL_SIT1H_COVX, useNA = 'ifany')
+t1<-table(CLSA_mAB50$FUL_SIT1H_COVX[CLSA_mAB50$FUL_SIT1H_COVX>0], 
+          CLSA_mAB50$SER_ADM_COV[CLSA_mAB50$FUL_SIT1H_COVX>0])
+t1
+round(prop.table(t1, margin = 2), digits = 4)
+chisq.test(t1)
+#### Walk up/down stairs
+table(CLSA_mAB50$FUL_FSTR_COVX, useNA = 'ifany')
+t1<-table(CLSA_mAB50$FUL_FSTR_COVX[CLSA_mAB50$FUL_FSTR_COVX>0], 
+          CLSA_mAB50$SER_ADM_COV[CLSA_mAB50$FUL_FSTR_COVX>0])
+t1
+round(prop.table(t1, margin = 2), digits = 4)
+chisq.test(t1)
+
+#### Walk to neighborhood
+table(CLSA_mAB50$FUL_WK23B_COVX, useNA = 'ifany')
+t1<-table(CLSA_mAB50$FUL_WK23B_COVX[CLSA_mAB50$FUL_WK23B_COVX>0], 
+          CLSA_mAB50$SER_ADM_COV[CLSA_mAB50$FUL_WK23B_COVX>0])
+t1
+round(prop.table(t1, margin = 2), digits = 4)
+chisq.test(t1)
+
+## The Outcome var
+t1<-table(CLSA_mAB50$SER_NUCLEOCAPSID_COV, CLSA_mAB50$SER_ADM_COV)
+t1
+round(prop.table(t1, margin = 2), digits = 4)
+chisq.test(t1)
+```
+
+
+
+
+
+
+
+
+
+
+
+

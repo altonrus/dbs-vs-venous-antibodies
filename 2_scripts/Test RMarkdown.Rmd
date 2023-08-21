@@ -1,0 +1,49 @@
+---
+title: "Test R Markdown"
+author: "J Chen"
+date: "2023-06-19"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+## Try to save this file as .rmd format
+```{r}
+# just click save button, a copy of rmd file will be saved on the server.
+# The R studio will keep the changes and save the env when you are leaving.
+
+```
+
+## Get access to the data on the server
+```{r}
+# Load the data from the server
+library(haven)
+AbC <- read.csv("~/ABC_Data/df_047_hs_jha_phases1234.csv")
+View(AbC)
+
+## Notes
+## Large dataset, 600+ columns, with 23024 obs. The data file is around 50 mb.
+```
+

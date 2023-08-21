@@ -1,0 +1,159 @@
+---
+title: "1.1 Travel Distance Est"
+format: html
+editor: visual
+---
+
+## Quarto
+
+Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+
+## Running Code
+
+When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+
+## Load the paks
+```{r}
+library(gmapsdistance) # use this pak to calculate traveling distance
+# library(rdgal) this pak is not available for this version of R
+library(sf)            # Loading .sph data, processing polygon...
+library(ggplot2)       # plotting pak 
+library(dplyr)
+```
+
+## Test the pak using simple example
+```{r}
+set.api.key("AIzaSyAuJVVKUamO_OVHfsUavMN2zzjjQ7sAB9I")
+gmapsdistance(origin = c("Washington DC", "New York NY", "Seattle WA"),
+              destination = c("Washington DC", "New York NY", "Seattle WA"),
+              key = "AIzaSyAuJVVKUamO_OVHfsUavMN2zzjjQ7sAB9I",
+)$Distance
+## it works, the output is a 3-by-3 table showing the distance in meters
+
+# Second example, using less-specific info
+gmap_test2<-gmapsdistance(origin = c("H3T", "M6K"),
+              destination = c("3280 Hospital Drive N.W. Calgary, AB T2N 4Z6",
+                              "3280 Hospital Drive N.W. Calgary, AB T2N 4Z6"))
+gmap_test2$Distance
+# problem: needs to be more precise on location, FSA may not works
+## Use coordinates
+gmap_test3<-gmapsdistance(origin = c("54.860461, -111.546162"),
+              destination = c("3280 Hospital Drive N.W. Calgary, AB T2N 4Z6"),
+              mode="driving")
+
+gmap_test3$Distance
+
+```
+## Solution 1: Get the center coord of each FSA
+```{r}
+# Load shape file
+s.sf<-st_read("~/AB_Geo/lfsa000a21a_e.shp")               # FSA file
+pop.sf<-st_read("~/AB_Geo/AB_POP_CNTR/lpc_000a21a_e.shp") # pop center shp
+# Now make a subset of AB
+s.sf.ab<-s.sf[s.sf$PRUID==48,]
+pop.sf.ab<-pop.sf[pop.sf$PRUID==48,]
+
+## Plot the Alberta data
+plot(s.sf.ab$geometry)
+plot(pop.sf.ab$geometry)
+
+# probably we needs to use FSA shape file
+```
+
+
+#### Methos 1.1 use the center of each polygon
+```{r}
+centroid<-st_centroid(s.sf.ab)
+plot(centroid)
+
+# plot both together to confirm that they are equivalent
+ggplot() + 
+  geom_sf(data = s.sf.ab, fill = 'white') +
+  geom_sf(data = centroid, color = 'red') 
+```
+
+## Looks good, transform the coordinates for GMap to use
+```{r}
+centroid$coord<-st_transform(centroid$geometry, 4326)
+
+# Export as csv
+write.csv(centroid, "~/AB_Geo/FSA_Center.csv", row.names=TRUE)
+
+# Imported the converted xlsx file
+library(readxl)
+FSA_Center_Converted <- read_excel("AB_Geo/FSA_Center_Converted.xlsx")
+FSA_Center_small<-select(FSA_Center_Converted, CFSAUID, coord_text)
+FSA_Center_20<-FSA_Center_small[1:20,]
+```
+
+##  Calculate Traveling Time
+```{r}
+gmap_FSA20<-gmapsdistance(origin = FSA_Center_20$coord_text,
+              destination = rep("3280 Hospital Drive N.W. Calgary, AB T2N 4Z6",20),
+              mode="driving", combinations = 'pairwise')
+
+travel_dis_1<-gmap_FSA20$Distance$Distance
+
+# it works, now apply it to all AB FSAs
+gmap_FSA_2<-gmapsdistance(origin = FSA_Center_small[21:80,]$coord_text,
+              destination = rep("3280 Hospital Drive N.W. Calgary, AB T2N 4Z6", 60),
+              mode="driving", combinations = 'pairwise')
+gmap_FSA_3<-gmapsdistance(origin = FSA_Center_small[81:90,]$coord_text,
+              destination = rep("3280 Hospital Drive N.W. Calgary, AB T2N 4Z6", 10),
+              mode="driving", combinations = 'pairwise')
+gmap_FSA_4<-gmapsdistance(origin = FSA_Center_small[91:95,]$coord_text,
+              destination = rep("3280 Hospital Drive N.W. Calgary, AB T2N 4Z6", 5),
+              mode="driving", combinations = 'pairwise')
+
+
+gmap_FSA_5<-gmapsdistance(origin = FSA_Center_small[96,]$coord_text,
+              destination = rep("3280 Hospital Drive N.W. Calgary, AB T2N 4Z6", 1),
+              mode="driving", combinations = 'pairwise')
+gmap_FSA_6<-gmapsdistance(origin = FSA_Center_small[97,]$coord_text,
+              destination = rep("3280 Hospital Drive N.W. Calgary, AB T2N 4Z6", 1),
+              mode="driving", combinations = 'pairwise')
+gmap_FSA_7<-gmapsdistance(origin = "Northeast Edmonton, Edmonton, AB T5Y 6G6",
+              destination = rep("3280 Hospital Drive N.W. Calgary, AB T2N 4Z6", 1),
+              mode="driving", combinations = 'pairwise')
+gmap_FSA_8<-gmapsdistance(origin = FSA_Center_small[99,]$coord_text,
+              destination = rep("3280 Hospital Drive N.W. Calgary, AB T2N 4Z6", 1),
+              mode="driving", combinations = 'pairwise')
+gmap_FSA_9<-gmapsdistance(origin = FSA_Center_small[100,]$coord_text,
+              destination = rep("3280 Hospital Drive N.W. Calgary, AB T2N 4Z6", 1),
+              mode="driving", combinations = 'pairwise')
+gmap_FSA_10<-gmapsdistance(origin = FSA_Center_small[101:154,]$coord_text,
+              destination = rep("3280 Hospital Drive N.W. Calgary, AB T2N 4Z6", 54),
+              mode="driving", combinations = 'pairwise')
+
+travel_dis_2<-gmap_FSA_2$Distance$Distance
+travel_dis_3<-gmap_FSA_3$Distance$Distance
+travel_dis_4<-gmap_FSA_4$Distance$Distance
+travel_dis_5<-gmap_FSA_5$Distance
+travel_dis_6<-gmap_FSA_6$Distance
+travel_dis_7<-gmap_FSA_7$Distance
+travel_dis_8<-gmap_FSA_8$Distance
+travel_dis_9<-gmap_FSA_9$Distance
+travel_dis_10<-gmap_FSA_10$Distance$Distance
+
+travel_dis<-c(travel_dis_1, travel_dis_2, travel_dis_3, 
+      travel_dis_4, travel_dis_5, travel_dis_6, 
+      travel_dis_7, travel_dis_8, travel_dis_9, 
+      travel_dis_10)
+
+FSA_Center_small$Gmap_dist<-travel_dis
+
+hist(FSA_Center_small$Gmap_dist/1000, breaks = 20, main = "Distance to Calgary Testing Center", xlab = "Km")
+
+## Manually fix NA's
+FSA_Center_small$fix_ind<-ifelse(is.na(FSA_Center_small$Gmap_dist)==TRUE, 1,0)
+FSA_Center_small$Gmap_dist[1]<-563000
+FSA_Center_small$Gmap_dist[6]<-893000
+FSA_Center_small$Gmap_dist[11]<-871000
+FSA_Center_small$Gmap_dist[65]<-32000
+FSA_Center_small$Gmap_dist[146]<-812000
+```
+## Save the FSA Center Data
+```{r}
+save(FSA_Center_small, file = "~/AB_Geo/FSA_Center_fixed.RData")
+```
+

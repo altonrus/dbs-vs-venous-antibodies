@@ -1,0 +1,241 @@
+---
+title: "CITF_CBS"
+author: "Yuan"
+date: "2023-06-19"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+---
+title: "CITF copy of CBS serology project data: descriptive stats"
+author: "Ahmed Moustafa Ahmed and Tanya Murphy"
+date: "Last updated: Oct 14, 2022, Created: May 5, 2022"
+output:
+  html_document:
+    toc: true
+    number_sections: true
+    code_folding: hide
+    df_print: paged
+---
+
+|---------------------------------------------------------------------------------|
+| Generating CBS descriptive statistics:                                          |                
+|   1. Make sure to have the up-to-date tables ready from CBS_ETL_function script |
+|---------------------------------------------------------------------------------|
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(haven)
+library(lubridate)
+library(tidyverse) # loads readr
+```
+
+## CITF database 
+
+Canadian Blood Services (CBS) seroprevalence project data: CBS shares its seroprevalence results with basic donor demographics with the CITF for internal use, which includes seroprevalence estimation by the CITF Data Management and Analysis team and collaborations with students and researchers on analyses deemed of high importance to CITF's objectives (rapid dissemination of COVID-19 immunity surveillance results to decision makers).   
+
+``` {r postgresql-tables}
+# to read the prepared data tables
+library(DBI)
+library(RPostgres)
+
+### Test connection arguments
+con <- dbConnect(
+    RPostgres::Postgres(),
+    dbname = 'cbs0', 
+    host = '132.216.183.71', 
+    port = 5432, # or any other port specified by your DBAuser = "rstudio", 
+    user = "jchen", # CITF-provided postgres name and password
+    rstudioapi::askForPassword("Database password:") 
+)
+# Set search path (does not include 'public', which is for internal CITF use)
+dbSendQuery(con, 'set search_path = "$user", "students"') 
+dbListTables(con)
+
+
+# you may keep intermediate tables in your schema: yyu.[tablename]
+
+```
+
+## Total Donations, One-time and Repeat Donors
+```{r stats1}
+# data_all   <- dbGetQuery(con, "SELECT * FROM students.copy_cbs_combined") # all data 
+data_demog <- dbGetQuery(con, "SELECT * FROM students.copy_cbs_demog") # socio-demog table
+data_sero <- dbGetQuery(con, "SELECT * FROM students.copy_cbs_sero") # serology table
+repeat_donors <- data_demog %>% filter(sero_num > 1) # repeat donors
+
+#class(data_all$sampledate)
+
+# Basic stats------------------------------------------------------
+n_donations <- length(data_all$pid) # total number of donations
+# or
+n_donation2 <- sum(data_demog$sero_num) # sum of total donations for each donor
+#cat("Total number of donations:", n_donations2)
+
+n_donors <- length(data_demog$pid) # number of unique donors
+# length(unique(data_demog$pid)) # check
+
+n_onetime_donors <- sum(data_demog$sero_num == 1) # number of one-time donors
+
+n_repeat_donors  <- sum(data_demog$sero_num > 1) # number of repeat donors
+#------------------------------------------------------------------
+
+
+# All Donors-------------------------------------------------------
+ever_n_positive  <- sum(data_demog$npos_ever == TRUE, na.rm = T) # All donors ever n positive on either Abbott or Roche (mostly Roche from Jan 2021)
+
+ever_n_positive_abbott  <- sum(data_demog$npos_ever_abbott == TRUE, na.rm = T) # All donors ever n positive on Abbott
+
+ever_n_positive_roche   <- sum(data_demog$npos_ever_roche == TRUE, na.rm = T)  # All donors ever n positive on Roche
+#------------------------------------------------------------------
+
+
+# Repeat Donors----------------------------------------------------
+r_ever_n_positive <- sum(repeat_donors$npos_ever, na.rm = T) # Repeat donors ever n positive on either Abbott or Roche (mostly Roche from Jan 2021)
+
+r_ever_n_positive_abbott <- sum(repeat_donors$npos_ever_abbott, na.rm = T) # Repeat donors ever n positive on Abbott
+
+r_ever_n_positive_roche  <- sum(repeat_donors$npos_ever_roche, na.rm = T)   # Repeat donors ever n positive on Roche
+
+# Create the mode function.
+getmode <- function(v) {
+   uniqv <- unique(v)
+   uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+
+r_mode_donations <- getmode(repeat_donors$sero_num) # Most repeated number of donations
+  
+
+#------------------------------------------------------------------
+```
+
+### Stats from pos to neg /// neg to pos for anti-N
+```{r stats2}
+
+# Serology---------------------------------------------------------
+# 74 donors went from p to n, the timepassed is from the first positive to the first negative presented in the histogram
+repeat_sero_p_to_n <- data_sero %>% group_by(pid) %>% arrange(pid, sampledate) %>% mutate(sero_num = n()) %>% filter(sero_num > 1 & grepl('Roche', assay_type)) %>% filter(cummax(cur_result_n == "Roche Positive") > 0) %>% mutate(timepassed = sampledate - min(sampledate)) %>%  filter(cummax(cur_result_n == "Roche Negative") > 0) %>% filter(row_number()==1)
+
+n_repeat_sero_p_to_n <- length(unique(repeat_sero_p_to_n$pid))
+
+# Donors going from negative to positive = 2017, timepassed is from first negative to first positive
+repeat_sero_n_to_p <- data_sero %>% group_by(pid) %>% arrange(pid, sampledate) %>% mutate(sero_num = n()) %>% filter(sero_num > 1 & grepl('Roche', assay_type)) %>% filter(cummax(cur_result_n == "Roche Negative") > 0) %>% mutate(timepassed = sampledate - min(sampledate)) %>%  filter(cummax(cur_result_n == "Roche Positive") > 0) %>% filter(row_number()==1)
+
+# Very few = 7 observations, went from positive to negative then to positive again
+repeat_sero_p_n_p <- data_sero %>% group_by(pid) %>% arrange(pid, sampledate) %>% mutate(sero_num = n()) %>% filter(sero_num > 1 & grepl('Roche', assay_type)) %>% filter(cummax(cur_result_n == "Roche Positive") > 0) %>% mutate(timepassed = sampledate - min(sampledate)) %>%  filter(cummax(cur_result_n == "Roche Negative") > 0) %>% filter(cur_result_n == "Roche Positive") %>% filter(row_number()==1)
+
+n_repeat_sero_p_n_p <- length(unique(repeat_sero_p_n_p$pid))
+
+# 7 Donors going from negative to positive to negative
+# repeat_sero_n_p_n <- data_sero %>% group_by(pid) %>% arrange(pid, sampledate) %>% mutate(sero_num = n()) %>% filter(sero_num > 1 & grepl('Roche', assay_type)) %>% filter(cummax(cur_result_n == "Roche Negative") > 0) %>% mutate(timepassed = sampledate - min(sampledate)) %>%  filter(cummax(cur_result_n == "Roche Positive") > 0) %>% filter(cur_result_n == "Roche Negative") %>% filter(row_number()==1)
+
+#------------------------------------------------------------------
+
+```
+
+### Chunk for presenting the results of the above (used in Rmarkdown report)
+```{r results}
+library("formattable")
+
+a <- c("Total number of donations:", "Total number of donors:", "Number of repeat donors:", "Mode Donations:", "Repeat donors ever N-positive Roche:", "Number of Repeat donor anti-N positive to negative (Roche):", "Number of Repeat donor anti-N positive to negative to positive (Roche):")
+
+b <- c(n_donations, n_donors, n_repeat_donors, r_mode_donations, r_ever_n_positive_roche, n_repeat_sero_p_to_n, n_repeat_sero_p_n_p)
+
+table <- paste(a, b)
+table <- as.data.frame(table)
+table
+
+hist(main = "Histogram timepassed between donation from first positive to negative results",
+     xlab = "timepassed between donations",
+     as.numeric(repeat_sero_p_to_n$timepassed))
+
+```
+
+### A chunk to perform some quality checks
+```{r checks}
+# data checks----------------------------------------------------
+#length(unique(data_all$pid)) # check that the result from demogs table and full table match 
+
+#check <- data_demog
+#length(unique(data_demog$pid)) # to make sure there is one line per donor
+#table(data_demog$discrep) # to make sure there is one line per donor
+
+#check <- data_demog %>% filter(sero_num==1) # checking that all rows are uniqe for one-time donors in demog table
+#length(unique(check$pid)) # checking that all rows are uniqe for one-time donors in demog table
+
+#check <- data_demog %>% filter(sero_num>1) # checking that all rows are unique for repeat donors in demog table
+#length(unique(check$pid)) # checking that all rows are unique for repeat donors in demog table
+
+#check <- data_demog %>% filter(npos_ever==TRUE) # checking that both this value and sum function value are the same
+#length(unique(check$pid)) # checking that all rows are unique for npos_ever in demog table
+
+#check <- data_demog %>% filter(sero_num >1 & npos_ever==TRUE) # checking that both this value and sum function value are the same
+
+# check to see if all donations are tested
+#sum(data_demog$sero_num)
+#length(unique(data_other$pid))
+#----------------------------------------------------------
+
+# `r format(round(n_donations, 1), nsmall = 1)`
+# `r format(round(n_donors, 1), nsmall = 1)`
+# `r format(round(n_onetime_donors, 1), nsmall = 1)`
+# `r format(round(n_repeat_donors, 1), nsmall = 1)`
+
+#data_all %>% filter(sampledate >= "2022-03-01" & sampledate < "2022-04-01") # checking number of donations to match CBS reports
+#data_jan <- read_sas("/home/amoustafa/data/mcgilldata_jan2_22mar2022.sas7bdat") # discrepancy in cbs jan reporting between v1 and v2
+
+```
+
+```{r aggregate-request}
+
+data <- dbGetQuery(con, "SELECT * FROM students.copy_cbs_combined") 
+
+data2 <- data %>% filter(!is.na(roche_n) | !is.na(roche_s)) # when we started having roche result is 2020-12-14
+
+age_groups_fun <- function(variable) {
+  age_group = cut(variable, 
+      breaks = c(-Inf,10 ,20,30,40,50,60 ,70,80,90, Inf) ,
+      labels = c("0-9 years"
+                  ,"10-19 years","20-29 years","30-39 years"
+                  ,"40-49 years","50-59 years","60-69 years"
+                  ,"70-79 years","80-89 years","90+ years"),
+                  right = FALSE)
+                  return(age_group)}
+
+province_fun <- function(var) {
+  fsa_f = as.character(substr(var,1,1))
+  prov =  ifelse(fsa_f == "A", "NL",
+          ifelse(fsa_f == "B", "NS",
+          ifelse(fsa_f == "C", "PE",
+          ifelse(fsa_f == "E", "NB",
+          ifelse(fsa_f == "G" | fsa_f == "H" | fsa_f == "J", "QC",
+          ifelse(fsa_f == "K" | fsa_f == "L" | fsa_f == "M" | fsa_f == "N" | fsa_f == "P", "ON",
+          ifelse(fsa_f == "R", "MB",
+          ifelse(fsa_f == "S", "SK",
+          ifelse(fsa_f == "T", "AB",
+          ifelse(fsa_f == "V", "BC",
+          ifelse(fsa_f == "X", "NU/NT",
+          ifelse(fsa_f == "Y", "YT", NA
+            ))))))))))))
+          return(prov)}
+
+data3 <- data2 %>% mutate(age = 2022 - dob, age_group = age_groups_fun(age)) %>% mutate(month_year = format(as.Date(data2$sampledate), "%Y-%m")) %>% mutate(province = province_fun(fsa)) %>%  mutate(log_roche_s = log(roche_s)) # for natural log do we take the absolute value or change negative values to zero???
+
+table(data3$province, useNA = "ifany") # check
+
+data3 %>% filter(province == "ON", age_group == "10-19 years", month_year == "2020-12") # check
+
+data4 <- data3 %>% select(age_group, month_year, province, roche_s, log_roche_s) %>% group_by(age_group, month_year, province) %>% summarise(mean_s = mean(roche_s), mean_log_s=mean(log_roche_s),sd_s=sd(roche_s), sd_log_s=sd(log_roche_s)) %>% arrange(age_group, province, month_year)
+
+```
+
+```{r close-dbi-connection}
+# Close connection to postgres (not needed once data loaded into R)
+dbDisconnect(con)
+
+```
