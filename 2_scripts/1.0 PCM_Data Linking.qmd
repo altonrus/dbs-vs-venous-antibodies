@@ -26,10 +26,10 @@ library(epiR)          # make epi tables
 
 ```{r}
 # CLSA Covid Study Data
-CLSA_Covid<-read.csv("~/CLSA/2209005_McGill_ARussell_Covid/2209005_McGill_ARussell_Covid_Combined_v1-1.csv")
+CLSA_Covid<-read.csv("~/dbs-vs-venous-antibodies/1_data/private/2209005_McGill_ARussell_Covid/2209005_McGill_ARussell_Covid_Combined_v1-1.csv")
 
 # CLSA Covid Antibody Data
-CLSA_Antibody <- read.csv("~/CLSA/2209005_McGill_ARussell_Covid/2209005_McGill_ARussell_Covid_Antibody_Combined_NoIndigenousIdentifiers_v1.csv")
+CLSA_Antibody <- read.csv("~/dbs-vs-venous-antibodies/1_data/private/2209005_McGill_ARussell_Covid/2209005_McGill_ARussell_Covid_Antibody_Combined_NoIndigenousIdentifiers_v1.csv")
 ## This one has fewer participants, compare to the CLSA_Covid dataset
 ```
 
@@ -65,6 +65,9 @@ table(CLSA_Covid$SEX_CLSA, useNA = 'ifany')
 ```{r}
 table(CLSA_Covid$cohort, useNA = 'ifany')
 # beware we have tracking cohort in this dataset
+
+# Comprehensive
+# Tracking
 ```
 
 ## Geo Location Variables
@@ -107,12 +110,13 @@ boxplot(CLSA_Covid$POP_DENSITY_COVID[CLSA_Covid$POP_DENSITY_COVID>0])
 
 nrow(CLSA_Covid[CLSA_Covid$POP_DENSITY_COVID==0,]) # N=168
 ```
+
 ## Load FSA location and distance data
+
 ```{r}
 # The code for travel distance estimation is 1.1 Travel Distance Est.qmd
 FSA_Center_small<-load("~/AB_Geo/FSA_Center_fixed.RData")
 ```
-
 
 # CLSA Antibody Dataset
 
@@ -189,6 +193,8 @@ CLSA_Covid_small<-select(CLSA_Covid, entity_id,AGE_NMBR_COVID, SEX_CLSA,
 
 ## CLSA Antibody Data
 CLSA_Antibody_small<-select(CLSA_Antibody, entity_id,
+                            start_datetime_COV,       #Interview date
+                            ICQ_start_datetime_COV,   #DCS visit date
                             SER_ETHN_WH_COV,
                             SER_ETHN_SA_COV,
                             SER_ETHN_ZH_COV,
@@ -214,72 +220,229 @@ CLSA_Antibody_small<-select(CLSA_Antibody, entity_id,
 CLSA_m<-merge(CLSA_Covid_small, CLSA_Antibody_small, by = "entity_id", all=FALSE)
 # We got N=14437 Obs in the merged dataset
 
-# Create Alberta Subset
-CLSA_mAB<-CLSA_m[CLSA_m$PROV_COVID==48,]
-# N=1486 in Alberta
-
-# Add Travel Distance Var
-FSA_Center_fm<-select(FSA_Center_small, CFSAUID, Gmap_dist, fix_ind)
-CLSA_mAB<-merge(CLSA_mAB, FSA_Center_fm, by.x = "FSA_COVID", by.y = "CFSAUID",
-                all.x = TRUE)
-
 ```
 
-## Clean the merged dataset
-
+## Clean the merged data
 ```{r}
 ## The Anti-N
-CLSA_mAB$SER_NUCLEOCAPSID_COV[CLSA_mAB$SER_NUCLEOCAPSID_COV<0]<-NA
-table(CLSA_mAB$SER_NUCLEOCAPSID_COV, useNA = 'ifany')
+CLSA_m$SER_NUCLEOCAPSID_COV[CLSA_m$SER_NUCLEOCAPSID_COV<0]<-NA
+table(CLSA_m$SER_NUCLEOCAPSID_COV, useNA = 'ifany')
 
 ## The VBS vs DBS
-CLSA_mAB$SER_ADM_COV[CLSA_mAB$SER_ADM_COV==2]<-0
+## CLSA_m$SER_ADM_COV[CLSA_m$SER_ADM_COV==2]<-0
 
 # Age Var - numeric, good
 # Gender var - two categories, directly useable
 
 # Urban/Rural categories
-table(CLSA_mAB$URBAN_RURAL_COVID, useNA = 'ifany')
-CLSA_mAB$URBAN_RURAL_COVID[CLSA_mAB$URBAN_RURAL_COVID==-88888]<-NA
+table(CLSA_m$URBAN_RURAL_COVID, useNA = 'ifany')
+CLSA_m$URBAN_RURAL_COVID[CLSA_m$URBAN_RURAL_COVID==-88888]<-NA
 
 ## Education
-table(CLSA_mAB$SER_EDU_COV, useNA = 'ifany')
-CLSA_mAB$SER_EDU_COV[CLSA_mAB$SER_EDU_COV %in% c(-88888,98,99)]<-NA
+table(CLSA_m$SER_EDU_COV, useNA = 'ifany')
+CLSA_m$SER_EDU_COV[CLSA_m$SER_EDU_COV %in% c(-88888,98,99)]<-NA
 
 ## Primary Care
-table(CLSA_mAB$SER_FAMPH_COV, useNA = 'ifany')
-CLSA_mAB$SER_FAMPH_COV[CLSA_mAB$SER_FAMPH_COV %in% c(-88888,98,99)]<-NA
+table(CLSA_m$SER_FAMPH_COV, useNA = 'ifany')
+CLSA_m$SER_FAMPH_COV[CLSA_m$SER_FAMPH_COV %in% c(-88888,98,99)]<-NA
 
 ## Physical Health
-table(CLSA_mAB$CCC_LTC_NONE_COVID, useNA = 'ifany')
+table(CLSA_m$CCC_LTC_NONE_COVID, useNA = 'ifany')
 ## So all paticipants has some minor health conditions, considering their age it make sense
 
 ## Mobility
 #### Stand up
-table(CLSA_mAB$FUL_SIT1H_COVX, useNA = 'ifany')
-CLSA_mAB$FUL_SIT1H_COVX[CLSA_mAB$FUL_SIT1H_COVX %in% c(-88888,3,9,8)]<-NA
+table(CLSA_m$FUL_SIT1H_COVX, useNA = 'ifany')
+CLSA_m$FUL_SIT1H_COVX[CLSA_m$FUL_SIT1H_COVX %in% c(-88888,3,9,8)]<-NA
 
 #### Walk up/down stairs
-table(CLSA_mAB$FUL_FSTR_COVX, useNA = 'ifany')
-CLSA_mAB$FUL_FSTR_COVX[CLSA_mAB$FUL_FSTR_COVX %in% c(-88888,3,9,8)]<-NA
+table(CLSA_m$FUL_FSTR_COVX, useNA = 'ifany')
+CLSA_m$FUL_FSTR_COVX[CLSA_m$FUL_FSTR_COVX %in% c(-88888,3,9,8)]<-NA
 
 #### Walk to neighborhood
-table(CLSA_mAB$FUL_WK23B_COVX, useNA = 'ifany')
-CLSA_mAB$FUL_WK23B_COVX[CLSA_mAB$FUL_WK23B_COVX %in% c(-88888,3,9,8)]<-NA
+table(CLSA_m$FUL_WK23B_COVX, useNA = 'ifany')
+CLSA_m$FUL_WK23B_COVX[CLSA_m$FUL_WK23B_COVX %in% c(-88888,3,9,8)]<-NA
 
 ## Mental Health
 #### Depression Scale
-table(CLSA_mAB$DEP_CESD10_COVX, useNA = 'ifany')
-CLSA_mAB$DEP_CESD10_COVX[CLSA_mAB$DEP_CESD10_COVX %in% c(-77772, -77771)]<-NA
+table(CLSA_m$DEP_CESD10_COVX, useNA = 'ifany')
+CLSA_m$DEP_CESD10_COVX[CLSA_m$DEP_CESD10_COVX %in% c(-77772, -77771)]<-NA
 
 #### Anxiety Scale
-table(CLSA_mAB$GAD_NBRMIS_COVX, useNA = 'ifany')
+table(CLSA_m$GAD_NBRMIS_COVX, useNA = 'ifany')
 
 ## Save the dataset
-save(CLSA_mAB, file = "~/CLSA/private/CLSA_Alberta_PSM.RData")
+save(CLSA_m, file = "~/dbs-vs-venous-antibodies/1_data/private/CLSA_m.RData")
+```
+
+## Updates Aug 21st 2023: CLSA quantitative assay results are availble, merge it
+```{r}
+COVID_19_Ab_Numeric <- read.csv("~/dbs-vs-venous-antibodies/1_data/private/2209005_COVID-19_Antibody_SpecialRequest_APL_test_results.csv")
+
+# looks good, now merge those two
+CLSA_mn<-merge(CLSA_m, COVID_19_Ab_Numeric, by = "entity_id", all=FALSE)
+# We got N=13124 Obs in the merged dataset
+```
+
+## In the merged data, check Anti-S dist among DBS (ADM=2) and Venous (ADM=1)
+```{r}
+# DBS: ADM=2, nagative
+summary(CLSA_mn$SPIKE_ANTIBODY[CLSA_mn$SER_ADM_COV==2 &
+                                      CLSA_mn$SER_SPIKE_COV==0])
+sd(CLSA_mn$SPIKE_ANTIBODY[CLSA_mn$SER_ADM_COV==2 &
+                                      CLSA_mn$SER_SPIKE_COV==0], na.rm = T)
+
+# DBS: ADM=2, Positive
+summary(CLSA_mn$SPIKE_ANTIBODY[CLSA_mn$SER_ADM_COV==2 &
+                                      CLSA_mn$SER_SPIKE_COV==1])
+sd(CLSA_mn$SPIKE_ANTIBODY[CLSA_mn$SER_ADM_COV==2 &
+                                      CLSA_mn$SER_SPIKE_COV==1], na.rm = T)
+
+# Venous: ADM=1, nagative
+summary(CLSA_mn$SPIKE_ANTIBODY[CLSA_mn$SER_ADM_COV==1 &
+                                      CLSA_mn$SER_SPIKE_COV==0])
+sd(CLSA_mn$SPIKE_ANTIBODY[CLSA_mn$SER_ADM_COV==1 &
+                                      CLSA_mn$SER_SPIKE_COV==0], na.rm = T)
+
+# Venous: ADM=1, Positive
+summary(CLSA_mn$SPIKE_ANTIBODY[CLSA_mn$SER_ADM_COV==1 &
+                                      CLSA_mn$SER_SPIKE_COV==1])
+sd(CLSA_mn$SPIKE_ANTIBODY[CLSA_mn$SER_ADM_COV==1 &
+                                      CLSA_mn$SER_SPIKE_COV==1], na.rm = T)
+
+```
+
+## In the merged data, check Anti-N dist among DBS (ADM=1) and Venous (ADM=0)
+```{r}
+# DBS: ADM=2, nagative
+summary(CLSA_mn$NUCLEOCAPSID_ANTIBODY[CLSA_mn$SER_ADM_COV==2 &
+                                      CLSA_mn$SER_NUCLEOCAPSID_COV==0])
+sd(CLSA_mn$NUCLEOCAPSID_ANTIBODY[CLSA_mn$SER_ADM_COV==2 &
+                                      CLSA_mn$SER_NUCLEOCAPSID_COV==0], na.rm = T)
+
+# DBS: ADM=2, Positive
+summary(CLSA_mn$NUCLEOCAPSID_ANTIBODY[CLSA_mn$SER_ADM_COV==2 &
+                                      CLSA_mn$SER_NUCLEOCAPSID_COV==1])
+sd(CLSA_mn$NUCLEOCAPSID_ANTIBODY[CLSA_mn$SER_ADM_COV==2 &
+                                      CLSA_mn$SER_NUCLEOCAPSID_COV==1], na.rm = T)
+
+# Venous: ADM=1, nagative
+summary(CLSA_mn$NUCLEOCAPSID_ANTIBODY[CLSA_mn$SER_ADM_COV==1 &
+                                      CLSA_mn$SER_NUCLEOCAPSID_COV==0])
+sd(CLSA_mn$NUCLEOCAPSID_ANTIBODY[CLSA_mn$SER_ADM_COV==1 &
+                                      CLSA_mn$SER_NUCLEOCAPSID_COV==0], na.rm = T)
+
+# Venous: ADM=1, Positive
+summary(CLSA_mn$NUCLEOCAPSID_ANTIBODY[CLSA_mn$SER_ADM_COV==1 &
+                                      CLSA_mn$SER_NUCLEOCAPSID_COV==1])
+sd(CLSA_mn$NUCLEOCAPSID_ANTIBODY[CLSA_mn$SER_ADM_COV==1 &
+                                      CLSA_mn$SER_NUCLEOCAPSID_COV==1], na.rm = T)
+
+```
+
+## Two cut-off points were applied, need to find a time when they applies new COI
+```{r}
+# Date - start of the interview
+str(CLSA_mn$start_datetime_COV)
+# Character, but can be ordered
+
+# Anti-N 0.155-0.353, Anti-N, DBS, Positive results
+date_DBS_p<-CLSA_mn$start_datetime_COV[CLSA_mn$SER_ADM_COV==2 &
+                           CLSA_mn$SER_NUCLEOCAPSID_COV==1 &
+                           CLSA_mn$NUCLEOCAPSID_ANTIBODY >= 0.155 & 
+                           CLSA_mn$NUCLEOCAPSID_ANTIBODY < 0.353]
+# Same above, but negative
+date_DBS_n<-CLSA_mn$start_datetime_COV[CLSA_mn$SER_ADM_COV==2 &
+                           CLSA_mn$SER_NUCLEOCAPSID_COV==0 &
+                           CLSA_mn$NUCLEOCAPSID_ANTIBODY >= 0.155 & 
+                           CLSA_mn$NUCLEOCAPSID_ANTIBODY < 0.353]
+
+max(date_DBS_p)
+min(date_DBS_p[date_DBS_p>0])
+# 2020/11/20 - 2021-06-22
+
+max(date_DBS_n)
+min(date_DBS_n[date_DBS_n>0])
+#2020/11/17 - 2021/08/31
+
+# Anti-N 0.103-0.24?, Anti-N, Venous, Positive results
+date_VBS_p<-CLSA_mn$start_datetime_COV[CLSA_mn$SER_ADM_COV==1 &
+                           CLSA_mn$SER_NUCLEOCAPSID_COV==1 &
+                           CLSA_mn$NUCLEOCAPSID_ANTIBODY >= 0.103 & 
+                           CLSA_mn$NUCLEOCAPSID_ANTIBODY < 0.2400001]
+# Same above, but negative
+date_VBS_n<-CLSA_mn$start_datetime_COV[CLSA_mn$SER_ADM_COV==1 &
+                           CLSA_mn$SER_NUCLEOCAPSID_COV==0 &
+                           CLSA_mn$NUCLEOCAPSID_ANTIBODY >= 0.103 & 
+                           CLSA_mn$NUCLEOCAPSID_ANTIBODY < 0.2400001]
+
+max(date_VBS_p)
+min(date_VBS_p[date_VBS_p>0])
+# 2020/11/01 - 2021-07-05
+
+max(date_VBS_n)
+min(date_VBS_n[date_VBS_n>0])
+# 2021/03/14 - 2021/07/19
+```
+## Give another try with ICQ_start_datetime_COV (DCS visiting date)
+```{r}
+# Anti-N 0.103-0.24?, Anti-N, Venous, Positive results
+DCS_date_VBS_p<-(CLSA_mn$ICQ_start_datetime_COV[CLSA_mn$SER_ADM_COV==1 &
+                           CLSA_mn$SER_NUCLEOCAPSID_COV==1 &
+                           CLSA_mn$NUCLEOCAPSID_ANTIBODY >= 0.103 & 
+                           CLSA_mn$NUCLEOCAPSID_ANTIBODY < 0.2400001])
+max(DCS_date_VBS_p)
+min(DCS_date_VBS_p)
+#2020-11-01 - 2021-07-05
+
+# Same above, but negative
+DCS_date_VBS_n<-(CLSA_mn$ICQ_start_datetime_COV[CLSA_mn$SER_ADM_COV==1 &
+                           CLSA_mn$SER_NUCLEOCAPSID_COV==0 &
+                           CLSA_mn$NUCLEOCAPSID_ANTIBODY >= 0.103 & 
+                           CLSA_mn$NUCLEOCAPSID_ANTIBODY < 0.2400001])
+max(DCS_date_VBS_n)
+min(DCS_date_VBS_n)
+#2020-11-09 - 2021-05-14
+```
+
+
+## Plot the hist of +/-
+```{r}
+ax <- pretty()
+
+hgA <- hist(CLSA_mn$NUCLEOCAPSID_ANTIBODY[CLSA_mn$SER_ADM_COV==2 &
+              CLSA_mn$SER_NUCLEOCAPSID_COV==0], 
+              breaks = ax, plot = FALSE) # Save first histogram data
+hgB <- hist(CLSA_mn$NUCLEOCAPSID_ANTIBODY[CLSA_mn$SER_ADM_COV==2 &
+              CLSA_mn$SER_NUCLEOCAPSID_COV==1], 
+              breaks = 50, plot = FALSE) # Save 2nd histogram data
+
+plot(hgA, col = 'lightblue') # Plot 1st histogram using a transparent color
+plot(hgB, col = 'coral', add = TRUE) # Add 2nd histogram using different color
+
+## Not good, too much diff between those two groups
+```
+
+
+
+
+## Create Alberta Subset
+```{r}
+# Create Alberta Subset
+CLSA_mAB<-CLSA_m[CLSA_m$PROV_COVID==48,]
+# N=1486 in Alberta
+
+# Save the subset
+save(CLSA_mAB, file = "~/dbs-vs-venous-antibodies/1_data/private/CLSA_Alberta_PSM.RData")
+
+# Add Travel Distance Var (run this code when dist file is all-set)
+FSA_Center_fm<-select(FSA_Center_small, CFSAUID, Gmap_dist, fix_ind)
+CLSA_mAB<-merge(CLSA_mAB, FSA_Center_fm, by.x = "FSA_COVID", by.y = "CFSAUID",
+                all.x = TRUE)
 ```
 
 ## Histogram: Show the distribution of Traveling Distance
+
 ```{r}
 ## First, show the dist in one group
 hist(CLSA_mAB$Gmap_dist/1000, breaks = 20)
@@ -295,7 +458,6 @@ hist(CLSA_mAB[CLSA_mAB$SER_ADM_COV==0,]$Gmap_dist/1000, breaks = 20)
 ## VBS with dist <=50
 table(CLSA_mAB[CLSA_mAB$Gmap_dist/1000<=50,]$SER_ADM_COV, useNA = 'ifany')
 ```
-
 
 ## Now built a logistic regression model, using age, sex and urbanicity
 
@@ -313,7 +475,9 @@ summary(lm01.a)
 ```
 
 ## Lm02, logistic regression model replace urban/rural with traveling dist
-## This model is only useful when dist<=50, for those lives further they will use DBS only
+
+## This model is only useful when dist\<=50, for those lives further they will use DBS only
+
 ```{r}
 # Only includes those <50 km
 lm02<-glm(SER_ADM_COV~AGE_NMBR_COVID + SEX_CLSA + Gmap_dist,
@@ -333,7 +497,6 @@ lm02.b<-glm(SER_ADM_COV~AGE_NMBR_COVID + SEX_CLSA +
 summary(lm02.b)
 ```
 
-
 ```{r}
 # Let's see hot ROC looks like (prop be bad)
 #ROC-curve using pROC library
@@ -345,7 +508,9 @@ library(pROC)
 ```
 
 ## An unadjusted Comparison - tables
+
 ## Required by Alton, after meeting on 06/26
+
 ```{r}
 # Create a subset for <50 km
 CLSA_mAB50<-CLSA_mAB[CLSA_mAB$Gmap_dist/1000<=50,]
@@ -359,14 +524,18 @@ sd(CLSA_mAB50$AGE_NMBR_COVID[CLSA_mAB50$SER_ADM_COV==0], na.rm = T)
 summary(CLSA_mAB50$AGE_NMBR_COVID[CLSA_mAB50$SER_ADM_COV==1])
 sd(CLSA_mAB50$AGE_NMBR_COVID[CLSA_mAB50$SER_ADM_COV==1], na.rm = T)
 ```
+
 ## Gmap Dist
+
 ```{r}
 var.test(CLSA_mAB50$Gmap_dist~CLSA_mAB50$SER_ADM_COV)
 t.test(CLSA_mAB50$Gmap_dist~CLSA_mAB50$SER_ADM_COV, var.equal=TRUE)
 sd(CLSA_mAB50$Gmap_dist[CLSA_mAB50$SER_ADM_COV==0])
 sd(CLSA_mAB50$Gmap_dist[CLSA_mAB50$SER_ADM_COV==1])
 ```
+
 ## Depression 10-scale
+
 ```{r}
 var.test(DEP_CESD10_COVX~SER_ADM_COV, 
          data = CLSA_mAB50[CLSA_mAB50$DEP_CESD10_COVX>=0,])
@@ -378,7 +547,9 @@ sd(CLSA_mAB50$DEP_CESD10_COVX[CLSA_mAB50$SER_ADM_COV==1 &
                               CLSA_mAB50$DEP_CESD10_COVX>=0], na.rm = T)
 
 ```
+
 ## Anxiety Scale
+
 ```{r}
 var.test(GAD_NBRMIS_COVX~SER_ADM_COV, 
          data = CLSA_mAB50[CLSA_mAB50$GAD_NBRMIS_COVX>=0,])
@@ -391,8 +562,8 @@ sd(CLSA_mAB50$GAD_NBRMIS_COVX[CLSA_mAB50$SER_ADM_COV==1 &
 
 ```
 
-
 ## Making prop tables
+
 ```{r}
 # SEX
 table(CLSA_mAB50$SEX_CLSA, CLSA_mAB50$SER_ADM_COV)
@@ -442,15 +613,3 @@ t1
 round(prop.table(t1, margin = 2), digits = 4)
 chisq.test(t1)
 ```
-
-
-
-
-
-
-
-
-
-
-
-
