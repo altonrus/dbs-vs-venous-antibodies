@@ -1,0 +1,187 @@
+---
+title: "1.2 Factors Related to DBS-VBS"
+format: html
+editor: visual
+---
+
+## Quarto
+
+Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+
+## Running Code
+
+When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+
+## Load the paks
+```{r}
+library(dplyr)   # Dataset management
+```
+
+## Load the dataset
+```{r}
+load(CLSA_mn, file='~/dbs-vs-venous-antibodies/1_data/private/CLSA_mn.RData')
+
+# Making subset
+CLSA_mncom<-CLSA_mn[CLSA_mn$cohort=="Comprehensive",]
+CLSA_mn$SER_ADM_COV[CLSA_mn$SER_ADM_COV==2]<-0 # Making DBS = 0 (ref)
+CLSA_mncom$SER_ADM_COV[CLSA_mncom$SER_ADM_COV==2]<-0 # Making DBS = 0 (ref)
+
+# Save the subset
+save(CLSA_mncom, file = '~/dbs-vs-venous-antibodies/1_data/private/CLSA_mncom.RData')
+```
+
+# ==================== Part.I Comprehensive Cohort Only =======================#
+
+Those came from comprehensive cohort live within 25-50 km ring from Data Collecting Sites (DCS). By restricting analysis to this group we can exclude the effect of traveling distances.
+
+## 1.1 Bivariate Analysis
+```{r}
+# Age
+var.test(CLSA_mncom$AGE_NMBR_COVID~CLSA_mncom$SER_ADM_COV)
+t.test(CLSA_mncom$AGE_NMBR_COVID~CLSA_mncom$SER_ADM_COV, var.equal=TRUE)
+# VBS is a bit elder 
+
+summary(CLSA_mncom$AGE_NMBR_COVID[CLSA_mncom$SER_ADM_COV==0])
+sd(CLSA_mncom$AGE_NMBR_COVID[CLSA_mncom$SER_ADM_COV==0], na.rm = T)
+summary(CLSA_mncom$AGE_NMBR_COVID[CLSA_mncom$SER_ADM_COV==1])
+sd(CLSA_mncom$AGE_NMBR_COVID[CLSA_mncom$SER_ADM_COV==1], na.rm = T)
+```
+Depression 10-scale
+```{r}
+var.test(DEP_CESD10_COVX~SER_ADM_COV, 
+         data = CLSA_mncom[CLSA_mncom$DEP_CESD10_COVX>=0,])
+t.test(DEP_CESD10_COVX~SER_ADM_COV, 
+        data = CLSA_mncom[CLSA_mncom$DEP_CESD10_COVX>=0,], var.equal=TRUE)
+# No sig diff
+
+sd(CLSA_mncom$DEP_CESD10_COVX[CLSA_mncom$SER_ADM_COV==0 &
+                              CLSA_mncom$DEP_CESD10_COVX>=0], na.rm = T)
+sd(CLSA_mncom$DEP_CESD10_COVX[CLSA_mncom$SER_ADM_COV==1 &
+                              CLSA_mncom$DEP_CESD10_COVX>=0], na.rm = T)
+```
+Anxiety Scale
+```{r}
+var.test(GAD_NBRMIS_COVX~SER_ADM_COV, 
+         data = CLSA_mncom[CLSA_mncom$GAD_NBRMIS_COVX>=0,])
+t.test(GAD_NBRMIS_COVX~SER_ADM_COV, 
+        data = CLSA_mncom[CLSA_mncom$GAD_NBRMIS_COVX>=0,], var.equal=FALSE)
+# No sig diff
+
+sd(CLSA_mncom$GAD_NBRMIS_COVX[CLSA_mncom$SER_ADM_COV==0 &
+                              CLSA_mncom$GAD_NBRMIS_COVX>=0], na.rm = T)
+sd(CLSA_mncom$GAD_NBRMIS_COVX[CLSA_mncom$SER_ADM_COV==1 &
+                              CLSA_mncom$GAD_NBRMIS_COVX>=0], na.rm = T)
+```
+
+Anti-S Ab Tier (Numeric)
+```{r}
+var.test(SPIKE_ANTIBODY~SER_ADM_COV, data = CLSA_mncom)
+t.test(SPIKE_ANTIBODY~SER_ADM_COV, 
+        data = CLSA_mncom, var.equal=FALSE)
+# Sig diff, this maybe affected by the extreme values (2500 upper LOD limit)
+
+sd(CLSA_mncom$SPIKE_ANTIBODY[CLSA_mncom$SER_ADM_COV==0], na.rm = T)
+sd(CLSA_mncom$SPIKE_ANTIBODY[CLSA_mncom$SER_ADM_COV==1], na.rm = T)
+```
+
+
+Making prop tables for categorical variables
+
+```{r}
+# Functions for making prop table + chisq test
+proptable_chisq<-function(r){tab1<-table(r, CLSA_mncom$SER_ADM_COV)
+            tab1.prop<-round(prop.table(tab1, margin = 2), digits = 4)*100
+            tab1.prop
+            tab2<-cbind(tab1[,1], tab1.prop[,1], tab1[,2], tab1.prop[,2])
+            colnames(tab2)<-c("DBS N", "DBS %",
+                              "VBS N", "VBS %")
+            lab1<-attributes(r)
+            print(lab1$label)
+            print(tab2)
+            print(chisq.test(tab1))
+            # fisher.test(tab1, simulate.p.value = T), big num, no fisher
+}
+```
+
+Sex (two categories)
+```{r}
+proptable_chisq(CLSA_mncom$SEX_CLSA)
+```
+
+Urban/Rural
+```{r}
+proptable_chisq(CLSA_mncom$URBAN_RURAL_COVID)
+```
+
+Education
+```{r}
+proptable_chisq(CLSA_mncom$SER_EDU_COV)
+```
+
+#### Mobility 
+
+Mobility - Stand up 
+```{r}
+proptable_chisq(CLSA_mncom$FUL_SIT1H_COVX)
+```
+
+Mobility - Walk up/down stairs
+```{r}
+proptable_chisq(CLSA_mncom$FUL_FSTR_COVX)
+```
+
+Mobility - Walk to neighborhood
+```{r}
+proptable_chisq(CLSA_mncom$FUL_WK23B_COVX)
+```
+
+The Outcome var
+```{r}
+proptable_chisq(CLSA_mncom$SER_NUCLEOCAPSID_COV)
+# Anti-N: VBS group has higher positivity
+```
+
+## 1.2 Logistic Regression Model: VBS (1) vs DBS (0)
+
+A simple model with age, sex and urban/rural
+```{r}
+lm01<-glm(SER_ADM_COV~AGE_NMBR_COVID + SEX_CLSA +
+                      relevel(as.factor(URBAN_RURAL_COVID),ref = "0"),
+    data=CLSA_mncom, family = binomial(link = "logit"))
+summary(lm01)
+
+# Same model, but use Urban Core (=1) as reference
+lm01.a<-glm(SER_ADM_COV~AGE_NMBR_COVID + SEX_CLSA +
+                      relevel(as.factor(URBAN_RURAL_COVID),ref = "1"),
+    data=CLSA_mncom, family = binomial(link = "logit"))
+summary(lm01.a)
+```
+
+Add more covariates: education and race
+```{r}
+lm02<-glm(SER_ADM_COV~AGE_NMBR_COVID + SEX_CLSA +
+                      relevel(as.factor(URBAN_RURAL_COVID),ref = "1") +
+                       relevel(as.factor(SER_EDU_COV), ref = "1"),
+    data=CLSA_mncom, family = binomial(link = "logit"))
+summary(lm02)
+```
+
+Add more covariates: mobility
+```{r}
+lm03<-glm(SER_ADM_COV~AGE_NMBR_COVID + SEX_CLSA +
+                      relevel(as.factor(URBAN_RURAL_COVID),ref = "1") +
+                      relevel(as.factor(SER_EDU_COV), ref = "1") + 
+                      relevel(as.factor(FUL_WK23B_COVX), ref = "2"),
+    data=CLSA_mncom, family = binomial(link = "logit"))
+summary(lm03)
+```
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,61 @@
+---
+title: "1.3 Propensity Score Matching"
+format: html
+editor: visual
+---
+
+## Quarto
+
+Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+
+## Running Code
+
+## Load Packages
+
+```{r}
+library(MatchIt)      # Pak for PSM
+library(lmtest)       # Pak for LRT
+library(sandwich)     # ??? why we need this
+```
+
+## Load Dataset
+
+```{r}
+load(file='~/dbs-vs-venous-antibodies/1_data/private/CLSA_mncom.RData')
+```
+
+# ===================== Part I. Propensity Score Matching ==================
+
+```{r}
+match_01 <- matchit(SER_ADM_COV~AGE_NMBR_COVID + SEX_CLSA +
+                      URBAN_RURAL_COVID +
+                      SER_EDU_COV,
+    data=CLSA_mncom[is.na(CLSA_mncom$URBAN_RURAL_COVID)==F &
+                    is.na(CLSA_mncom$SER_EDU_COV)==F ,],
+    method = "nearest",distance ="glm",
+    ratio = 1, replace = FALSE)
+summary(match_01)
+
+#plotting the balance between DBS and VBS
+plot(match_01, type = "jitter", interactive = FALSE)
+
+plot(summary(match_01), abs = FALSE)
+```
+
+Outcome Analysis
+
+```{r}
+matched_dat01 <- match.data(match_01)
+lmm.01<-glm(SER_NUCLEOCAPSID_COV~SER_ADM_COV,
+    data=matched_dat01, family = binomial(link = "logit"))
+summary(lmm.01)
+
+lmm.02<-lm(SPIKE_ANTIBODY~SER_ADM_COV,
+    data=matched_dat01, weights = weights)
+summary(lmm.02)
+
+#Test the coefficient using cluster robust standard error
+coeftest(lmm.02, vcov. = vcovCL, cluster = ~subclass)
+#Calculate the confidence intervals based on cluster robust standard error
+coefci(lmm.02, vcov. = vcovCL, cluster = ~subclass, level = 0.95)
+```

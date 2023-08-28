@@ -164,7 +164,8 @@ table(CLSA_Antibody$SER_ADM_COV, useNA = 'ifany')
 # Create subsets for each one:
 
 # CLSA_Covid data
-CLSA_Covid_small<-select(CLSA_Covid, entity_id,AGE_NMBR_COVID, SEX_CLSA,
+CLSA_Covid_small<-select(CLSA_Covid, entity_id, cohort,
+                                AGE_NMBR_COVID, SEX_CLSA,
                                 PROV_COVID,
                                 FSA_COVID,
                                 URBAN_RURAL_COVID,
@@ -193,8 +194,8 @@ CLSA_Covid_small<-select(CLSA_Covid, entity_id,AGE_NMBR_COVID, SEX_CLSA,
 
 ## CLSA Antibody Data
 CLSA_Antibody_small<-select(CLSA_Antibody, entity_id,
-                            start_datetime_COV,       #Interview date
-                            ICQ_start_datetime_COV,   #DCS visit date
+                            #start_datetime_COV,       #Interview date, not useful
+                            #ICQ_start_datetime_COV,   #DCS visit date, not useful
                             SER_ETHN_WH_COV,
                             SER_ETHN_SA_COV,
                             SER_ETHN_ZH_COV,
@@ -282,6 +283,9 @@ COVID_19_Ab_Numeric <- read.csv("~/dbs-vs-venous-antibodies/1_data/private/22090
 # looks good, now merge those two
 CLSA_mn<-merge(CLSA_m, COVID_19_Ab_Numeric, by = "entity_id", all=FALSE)
 # We got N=13124 Obs in the merged dataset
+
+# Save the Merged data with numeric values
+save(CLSA_mn, file = '~/dbs-vs-venous-antibodies/1_data/private/CLSA_mn.RData')
 ```
 
 ## In the merged data, check Anti-S dist among DBS (ADM=2) and Venous (ADM=1)
@@ -339,6 +343,7 @@ sd(CLSA_mn$NUCLEOCAPSID_ANTIBODY[CLSA_mn$SER_ADM_COV==1 &
                                       CLSA_mn$SER_NUCLEOCAPSID_COV==1], na.rm = T)
 
 ```
+
 
 ## Two cut-off points were applied, need to find a time when they applies new COI
 ```{r}
@@ -404,7 +409,29 @@ max(DCS_date_VBS_n)
 min(DCS_date_VBS_n)
 #2020-11-09 - 2021-05-14
 ```
+#### CoIs Investigation Conclusion: 
+In two time stamps variables we have in CLSA dataset, they are mostly overlapping between two groups. we can not differentiate those two reagent groups just using time variables. For now we can just leave it there but need to **come back and figure it out** later in the future.
 
+Alton's comments: The order they ran them on batches might not necessarily be the order that the sample was collected so that's not too surprising.
+
+***
+## Check the numbers in each track
+```{r}
+## Original CLSA_COVID data, N=28,565
+str(CLSA_Covid$cohort)
+table(CLSA_Covid$cohort, useNA = 'ifany')
+# Comp 18,533, Trac 10,032
+
+## Merged data with co-variates and assay results, N=13,124
+table(CLSA_mn$cohort, useNA = 'ifany')
+# Comp 7678, Trac 5446
+
+table(CLSA_mn$cohort, CLSA_mn$SER_ADM_COV, useNA = 'ifany')
+# No VBS sample in tracking group, makes sense. 
+```
+The venous blood sample all came from the **comprehensive cohort**. Those people were randomly selected from within **25-50 kms** from DCS. This could be the possible explanation of the "50-km cut-off" on traveling distances.
+
+To find possible factors related to sampling methods (VBS vs DBS), first we need to exclude traveling distances and relating factors.  The easiest way is only taking comprehensive track into consideration. A harder way is adding those within "25-50 km" ring in the tracking cohort, with DBS (N=5446).
 
 ## Plot the hist of +/-
 ```{r}
@@ -422,8 +449,6 @@ plot(hgB, col = 'coral', add = TRUE) # Add 2nd histogram using different color
 
 ## Not good, too much diff between those two groups
 ```
-
-
 
 
 ## Create Alberta Subset
