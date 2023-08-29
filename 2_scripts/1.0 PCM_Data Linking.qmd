@@ -1,5 +1,5 @@
 ---
-title: "1.0 PCM_Data Linking"
+title: "1.0 PCM_Data Linking & Cleaning"
 author: Jiacheng Chen
 format: html
 editor: visual
@@ -12,17 +12,20 @@ Quarto enables you to weave together content and executable code into a finished
 
 ## Running Code
 
-When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+This rmd file will include codes for those purposes:
+
+1.  Dataset import, merging and cleaning
+2.  Recode variables for future analysis
 
 ## Load necessary paks
 
 ```{r}
-library(haven)
-library(dplyr)
+library(haven)         # Import csv and xlsx files
+library(dplyr)         # Dataset management
 library(epiR)          # make epi tables
 ```
 
-## Import the CLSA Datasets
+## 1. Import the CLSA Datasets
 
 ```{r}
 # CLSA Covid Study Data
@@ -33,7 +36,7 @@ CLSA_Antibody <- read.csv("~/dbs-vs-venous-antibodies/1_data/private/2209005_McG
 ## This one has fewer participants, compare to the CLSA_Covid dataset
 ```
 
-## Check the CLSA Covid Datasets
+### 1.1 Check the CLSA Covid Datasets
 
 #### Demographic Part
 
@@ -58,7 +61,7 @@ table(CLSA_Covid$SEX_CLSA, useNA = 'ifany')
 # Those four variables are missing, probably we can find those in other dataset
 ```
 
-#### More info: https://www150.statcan.gc.ca/n1/pub/92-195-x/2011001/geo/cma-rmr/def-eng.htm
+#### More info: <https://www150.statcan.gc.ca/n1/pub/92-195-x/2011001/geo/cma-rmr/def-eng.htm>
 
 ## Which cohort?
 
@@ -118,9 +121,9 @@ nrow(CLSA_Covid[CLSA_Covid$POP_DENSITY_COVID==0,]) # N=168
 FSA_Center_small<-load("~/AB_Geo/FSA_Center_fixed.RData")
 ```
 
-# CLSA Antibody Dataset
+### 1.2 CLSA Antibody Dataset
 
-## Antibody
+### Antibody
 
 ```{r}
 # Anti-N
@@ -146,7 +149,7 @@ table(CLSA_Antibody$SER_SPIKE_COV, CLSA_Antibody$SER_NUCLEOCAPSID_COV, useNA = '
 # Both -       : none
 ```
 
-## Sampling Methods: Venous or Dry Blood Spot
+### Sampling Methods: Venous or Dry Blood Spot
 
 ```{r}
 str(CLSA_Antibody$SER_ADM_COV)
@@ -158,7 +161,7 @@ str(CLSA_Antibody$SER_ADM_COV)
 table(CLSA_Antibody$SER_ADM_COV, useNA = 'ifany')
 ```
 
-## Merging the datasets, only selecting useful variables.
+### Merging the datasets, only selecting useful variables.
 
 ```{r}
 # Create subsets for each one:
@@ -223,7 +226,8 @@ CLSA_m<-merge(CLSA_Covid_small, CLSA_Antibody_small, by = "entity_id", all=FALSE
 
 ```
 
-## Clean the merged data
+### 1.3 Clean the merged data
+
 ```{r}
 ## The Anti-N
 CLSA_m$SER_NUCLEOCAPSID_COV[CLSA_m$SER_NUCLEOCAPSID_COV<0]<-NA
@@ -276,7 +280,10 @@ table(CLSA_m$GAD_NBRMIS_COVX, useNA = 'ifany')
 save(CLSA_m, file = "~/dbs-vs-venous-antibodies/1_data/private/CLSA_m.RData")
 ```
 
-## Updates Aug 21st 2023: CLSA quantitative assay results are availble, merge it
+### Updates Aug 21st 2023: 
+
+### 1.4 CLSA quantitative assay results are availble, merge it
+
 ```{r}
 COVID_19_Ab_Numeric <- read.csv("~/dbs-vs-venous-antibodies/1_data/private/2209005_COVID-19_Antibody_SpecialRequest_APL_test_results.csv")
 
@@ -288,7 +295,8 @@ CLSA_mn<-merge(CLSA_m, COVID_19_Ab_Numeric, by = "entity_id", all=FALSE)
 save(CLSA_mn, file = '~/dbs-vs-venous-antibodies/1_data/private/CLSA_mn.RData')
 ```
 
-## In the merged data, check Anti-S dist among DBS (ADM=2) and Venous (ADM=1)
+### In the merged data, check Anti-S dist among DBS (ADM=2) and Venous (ADM=1)
+
 ```{r}
 # DBS: ADM=2, nagative
 summary(CLSA_mn$SPIKE_ANTIBODY[CLSA_mn$SER_ADM_COV==2 &
@@ -317,6 +325,7 @@ sd(CLSA_mn$SPIKE_ANTIBODY[CLSA_mn$SER_ADM_COV==1 &
 ```
 
 ## In the merged data, check Anti-N dist among DBS (ADM=1) and Venous (ADM=0)
+
 ```{r}
 # DBS: ADM=2, nagative
 summary(CLSA_mn$NUCLEOCAPSID_ANTIBODY[CLSA_mn$SER_ADM_COV==2 &
@@ -344,8 +353,8 @@ sd(CLSA_mn$NUCLEOCAPSID_ANTIBODY[CLSA_mn$SER_ADM_COV==1 &
 
 ```
 
-
 ## Two cut-off points were applied, need to find a time when they applies new COI
+
 ```{r}
 # Date - start of the interview
 str(CLSA_mn$start_datetime_COV)
@@ -389,7 +398,9 @@ max(date_VBS_n)
 min(date_VBS_n[date_VBS_n>0])
 # 2021/03/14 - 2021/07/19
 ```
+
 ## Give another try with ICQ_start_datetime_COV (DCS visiting date)
+
 ```{r}
 # Anti-N 0.103-0.24?, Anti-N, Venous, Positive results
 DCS_date_VBS_p<-(CLSA_mn$ICQ_start_datetime_COV[CLSA_mn$SER_ADM_COV==1 &
@@ -409,13 +420,17 @@ max(DCS_date_VBS_n)
 min(DCS_date_VBS_n)
 #2020-11-09 - 2021-05-14
 ```
-#### CoIs Investigation Conclusion: 
+
+#### CoIs Investigation Conclusion:
+
 In two time stamps variables we have in CLSA dataset, they are mostly overlapping between two groups. we can not differentiate those two reagent groups just using time variables. For now we can just leave it there but need to **come back and figure it out** later in the future.
 
 Alton's comments: The order they ran them on batches might not necessarily be the order that the sample was collected so that's not too surprising.
 
-***
+------------------------------------------------------------------------
+
 ## Check the numbers in each track
+
 ```{r}
 ## Original CLSA_COVID data, N=28,565
 str(CLSA_Covid$cohort)
@@ -429,11 +444,13 @@ table(CLSA_mn$cohort, useNA = 'ifany')
 table(CLSA_mn$cohort, CLSA_mn$SER_ADM_COV, useNA = 'ifany')
 # No VBS sample in tracking group, makes sense. 
 ```
+
 The venous blood sample all came from the **comprehensive cohort**. Those people were randomly selected from within **25-50 kms** from DCS. This could be the possible explanation of the "50-km cut-off" on traveling distances.
 
-To find possible factors related to sampling methods (VBS vs DBS), first we need to exclude traveling distances and relating factors.  The easiest way is only taking comprehensive track into consideration. A harder way is adding those within "25-50 km" ring in the tracking cohort, with DBS (N=5446).
+To find possible factors related to sampling methods (VBS vs DBS), first we need to exclude traveling distances and relating factors. The easiest way is only taking comprehensive track into consideration. A harder way is adding those within "25-50 km" ring in the tracking cohort, with DBS (N=5446).
 
 ## Plot the hist of +/-
+
 ```{r}
 ax <- pretty()
 
@@ -450,8 +467,8 @@ plot(hgB, col = 'coral', add = TRUE) # Add 2nd histogram using different color
 ## Not good, too much diff between those two groups
 ```
 
-
 ## Create Alberta Subset
+
 ```{r}
 # Create Alberta Subset
 CLSA_mAB<-CLSA_m[CLSA_m$PROV_COVID==48,]

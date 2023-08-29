@@ -27,6 +27,7 @@ load(file='~/dbs-vs-venous-antibodies/1_data/private/CLSA_mncom.RData')
 # ===================== Part I. Propensity Score Matching ==================
 
 ```{r}
+# Simple model for PSM, using age, sex, urbanicity, edu (numeric)
 match_01 <- matchit(SER_ADM_COV~AGE_NMBR_COVID + SEX_CLSA +
                       URBAN_RURAL_COVID +
                       SER_EDU_COV,
@@ -38,18 +39,19 @@ summary(match_01)
 
 #plotting the balance between DBS and VBS
 plot(match_01, type = "jitter", interactive = FALSE)
-
-plot(summary(match_01), abs = FALSE)
+plot(summary(match_01), abs = FALSE) # looks good
 ```
 
 Outcome Analysis
 
 ```{r}
+# Anti-N
 matched_dat01 <- match.data(match_01)
 lmm.01<-glm(SER_NUCLEOCAPSID_COV~SER_ADM_COV,
     data=matched_dat01, family = binomial(link = "logit"))
 summary(lmm.01)
 
+# Anti_S
 lmm.02<-lm(SPIKE_ANTIBODY~SER_ADM_COV,
     data=matched_dat01, weights = weights)
 summary(lmm.02)
@@ -59,3 +61,78 @@ coeftest(lmm.02, vcov. = vcovCL, cluster = ~subclass)
 #Calculate the confidence intervals based on cluster robust standard error
 coefci(lmm.02, vcov. = vcovCL, cluster = ~subclass, level = 0.95)
 ```
+
+#### Making plots for outcomes (Anti-N & Anti-S)
+
+This time we use **matched** data
+
+plots for Anti-N
+```{r}
+p02.N.neg<-ggplot(matched_dat01[matched_dat01$SER_NUCLEOCAPSID_COV==0,]
+       , aes(x=as.factor(SER_ADM_COV), y=NUCLEOCAPSID_ANTIBODY)) + 
+  labs(x="0=DBS, 1=VBS", y="Anti-N Ab Assay - Negative") +
+  labs(title = "Violin Plot for Numeric Anti-N Results, using matched data") +
+  geom_violin(trim=F)
+
+p02.N.pos<-ggplot(matched_dat01[matched_dat01$SER_NUCLEOCAPSID_COV==1,]
+       , aes(x=as.factor(SER_ADM_COV), y=NUCLEOCAPSID_ANTIBODY)) + 
+  labs(x="0=DBS, 1=VBS", y="Anti-N Ab Assay - Positive") +
+  labs(title = "Violin Plot for Numeric Anti-N Results, using matched data") +
+  geom_violin(trim=F)
+
+p02.N.neg + geom_boxplot(width=0.05, color='red')
+p02.N.pos + geom_boxplot(width=0.05, color='red')
+
+# Plot not readable for positive results, trim the upper at 5
+p02.N.pos5<-ggplot(matched_dat01[matched_dat01$SER_NUCLEOCAPSID_COV==1 &
+                                 matched_dat01$NUCLEOCAPSID_ANTIBODY<5,]
+       , aes(x=as.factor(SER_ADM_COV), y=NUCLEOCAPSID_ANTIBODY)) + 
+  labs(x="0=DBS, 1=VBS", y="Anti-N Ab Assay - Positive") +
+  labs(title = "Violin Plot for Numeric Anti-N Results, using matched data, trimmed at 5") +
+  geom_violin(trim=F)
+
+p02.N.pos5+ stat_summary(fun.data="mean_sdl", mult=1, 
+                 geom="crossbar", width=0.05, color='red' ) # plus mean & std, biased in this case
+
+p02.N.pos5+ geom_boxplot(width=0.05, color='red')
+```
+
+Plots for Anti-S
+```{r}
+p03.S.neg<-ggplot(matched_dat01[matched_dat01$SER_SPIKE_COV==0,]
+       , aes(x=as.factor(SER_ADM_COV), y=SPIKE_ANTIBODY)) + 
+  labs(x="0=DBS, 1=VBS", y="Anti-S Ab Assay - Negative") +
+  labs(title = "Violin Plot for Quant Anti-S Results, using matched data") +
+  geom_violin(trim=F)
+
+p03.S.pos<-ggplot(matched_dat01[matched_dat01$SER_SPIKE_COV==1,]
+       , aes(x=as.factor(SER_ADM_COV), y=SPIKE_ANTIBODY)) + 
+  labs(x="0=DBS, 1=VBS", y="Anti-S Ab Assay - Positive") +
+  labs(title = "Violin Plot for Quant Anti-S Results, using matched data") +
+  geom_violin(trim=F)
+
+p03.S.neg + geom_boxplot(width=0.05, color='orange')
+p03.S.pos + geom_boxplot(width=0.025, color='orange')
+
+# Plot not readable for positive results, trim the upper at 5
+p03.S.pos20<-ggplot(matched_dat01[matched_dat01$SER_SPIKE_COV==1 &
+                                 matched_dat01$SPIKE_ANTIBODY<20,]
+       , aes(x=as.factor(SER_ADM_COV), y=SPIKE_ANTIBODY)) + 
+  labs(x="0=DBS, 1=VBS", y="Anti-S Ab Assay - Positive") +
+  labs(title = "Violin Plot for Numeric Anti-S Results, using matched data, trimmed at 20") +
+  geom_violin(trim=F)
+
+p03.S.pos5+ stat_summary(fun.data="mean_sdl", mult=1, 
+                 geom="crossbar", width=0.05, color='red' ) # plus mean & std, biased in this case
+
+p03.S.pos20+ geom_boxplot(width=0.05, color='orange')
+```
+
+
+
+
+
+
+
+
+
