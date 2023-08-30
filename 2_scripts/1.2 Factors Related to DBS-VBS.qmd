@@ -94,6 +94,11 @@ sd(CLSA_mncom$GAD_NBRMIS_COVX[CLSA_mncom$SER_ADM_COV==0 &
 sd(CLSA_mncom$GAD_NBRMIS_COVX[CLSA_mncom$SER_ADM_COV==1 &
                               CLSA_mncom$GAD_NBRMIS_COVX>=0], na.rm = T)
 ```
+Minor Health Conditions (total of 11)
+```{r}
+var.test(min_health~SER_ADM_COV, data = CLSA_mncom)
+t.test(min_health~SER_ADM_COV, data = CLSA_mncom, var.equal=FALSE)
+```
 
 Anti-S Ab Tier (Numeric)
 
@@ -172,6 +177,20 @@ Education
 
 ```{r}
 proptable_chisq(CLSA_mncom$SER_EDU_COV)
+```
+Primary Care
+```{r}
+proptable_chisq(CLSA_mncom$SER_FAMPH_COV)
+```
+
+Race: white
+```{r}
+proptable_chisq(CLSA_mncom$SER_ETHN_WH_COV)
+```
+
+Major Health Conditions
+```{r}
+proptable_chisq(CLSA_mncom$maj_health_bin)
 ```
 
 #### Mobility
