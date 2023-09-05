@@ -26,18 +26,14 @@ library(ggplot2)       # Making plots
 ## Load the dataset
 
 ```{r}
+# Everypne
 load(CLSA_mn, file='~/dbs-vs-venous-antibodies/1_data/private/CLSA_mn.RData')
 
-# Making subset
-CLSA_mncom<-CLSA_mn[CLSA_mn$cohort=="Comprehensive",]
-CLSA_mn$SER_ADM_COV[CLSA_mn$SER_ADM_COV==2]<-0 # Making DBS = 0 (ref)
-CLSA_mncom$SER_ADM_COV[CLSA_mncom$SER_ADM_COV==2]<-0 # Making DBS = 0 (ref)
-
-# Save the subset
-save(CLSA_mncom, file = '~/dbs-vs-venous-antibodies/1_data/private/CLSA_mncom.RData')
+# Comprehensive cohort
+load(CLSA_mncom, file = '~/dbs-vs-venous-antibodies/1_data/private/CLSA_mncom.RData')
 ```
 
-# ====Part.I Comprehensive Cohort Only==== 
+# ====Part.I Comprehensive Cohort Only====
 
 Those came from comprehensive cohort live within 25-50 km ring from Data Collecting Sites (DCS). By restricting analysis to this group we can exclude the effect of traveling distances.
 
@@ -94,7 +90,9 @@ sd(CLSA_mncom$GAD_NBRMIS_COVX[CLSA_mncom$SER_ADM_COV==0 &
 sd(CLSA_mncom$GAD_NBRMIS_COVX[CLSA_mncom$SER_ADM_COV==1 &
                               CLSA_mncom$GAD_NBRMIS_COVX>=0], na.rm = T)
 ```
+
 Minor Health Conditions (total of 11)
+
 ```{r}
 var.test(min_health~SER_ADM_COV, data = CLSA_mncom)
 t.test(min_health~SER_ADM_COV, data = CLSA_mncom, var.equal=FALSE)
@@ -141,7 +139,6 @@ p01.N.pos20<-ggplot(CLSA_mncom[CLSA_mncom$SER_NUCLEOCAPSID_COV==1 &
 p01.N.pos20
 ```
 
-
 Making prop tables for categorical variables
 
 ```{r}
@@ -178,17 +175,21 @@ Education
 ```{r}
 proptable_chisq(CLSA_mncom$SER_EDU_COV)
 ```
+
 Primary Care
+
 ```{r}
 proptable_chisq(CLSA_mncom$SER_FAMPH_COV)
 ```
 
 Race: white
+
 ```{r}
 proptable_chisq(CLSA_mncom$SER_ETHN_WH_COV)
 ```
 
 Major Health Conditions
+
 ```{r}
 proptable_chisq(CLSA_mncom$maj_health_bin)
 ```

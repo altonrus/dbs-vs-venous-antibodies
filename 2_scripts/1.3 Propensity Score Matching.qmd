@@ -42,39 +42,173 @@ plot(match_01, type = "jitter", interactive = FALSE)
 plot(summary(match_01), abs = FALSE) # looks good
 ```
 
+Match_02: Adding more demographic variables
+
+```{r}
+# Adding all the available demo variables, 
+match_02 <- matchit(SER_ADM_COV~AGE_NMBR_COVID + SEX_CLSA +
+                      as.factor(URBAN_RURAL_COVID) +
+                      SER_EDU_COV + SER_ETHN_WH_COV +
+                      SER_FAMPH_COV,
+    data=CLSA_mncom[is.na(CLSA_mncom$URBAN_RURAL_COVID)==F &
+                    is.na(CLSA_mncom$SER_EDU_COV)==F &
+                    is.na(CLSA_mncom$SER_FAMPH_COV)==F &
+                    is.na(CLSA_mncom$SER_ETHN_WH_COV)==F ,],
+    method = "nearest",distance ="glm",
+    ratio = 1, replace = FALSE)
+summary(match_02)
+
+#plotting the balance between DBS and VBS
+plot(match_02, type = "jitter", interactive = FALSE)
+plot(summary(match_02), abs = FALSE) # looks good
+```
+
+3. Matched Pairs 3: added Health vars (physical, mental, mobility)
+
+```{r}
+match_03 <- matchit(SER_ADM_COV~AGE_NMBR_COVID + SEX_CLSA +
+                      as.factor(URBAN_RURAL_COVID) +
+                      SER_EDU_COV + SER_ETHN_WH_COV + SER_FAMPH_COV +
+                      min_health + maj_health_bin +
+                      GAD_NBRMIS_COVX + DEP_CESD10_COVX +
+                      FUL_SIT1H_COVX,
+    data=CLSA_mncom[is.na(CLSA_mncom$URBAN_RURAL_COVID)==F &
+                    is.na(CLSA_mncom$SER_EDU_COV)==F &
+                    is.na(CLSA_mncom$SER_FAMPH_COV)==F &
+                    is.na(CLSA_mncom$SER_ETHN_WH_COV)==F &
+                    is.na(CLSA_mncom$min_health)==F &
+                    is.na(CLSA_mncom$maj_health)==F &
+                    is.na(CLSA_mncom$DEP_CESD10_COVX)==F &
+                    is.na(CLSA_mncom$FUL_SIT1H_COVX)==F,],
+    method = "nearest",distance ="glm",
+    ratio = 1, replace = FALSE)
+summary(match_03)
+
+#plotting the balance between DBS and VBS
+plot(match_03, type = "jitter", interactive = FALSE)
+plot(summary(match_03), abs = FALSE) # looks good
+```
+
+
+
+
 Outcome Analysis
+
+1. Matched Pairs 1: age sex urban
 
 ```{r}
 # Anti-N
+#matched_dat01 <- match.data(match_03)
 matched_dat01 <- match.data(match_01)
-lmm.01<-glm(SER_NUCLEOCAPSID_COV~SER_ADM_COV,
+lmm.01.N<-glm(SER_NUCLEOCAPSID_COV~SER_ADM_COV,
     data=matched_dat01, family = binomial(link = "logit"))
-summary(lmm.01)
+summary(lmm.01.N)
 
 # Anti_S
-lmm.02<-lm(SPIKE_ANTIBODY~SER_ADM_COV,
+lmm.01.S<-lm(SPIKE_ANTIBODY~SER_ADM_COV,
     data=matched_dat01, weights = weights)
-summary(lmm.02)
+summary(lmm.01.S)
 
 #Test the coefficient using cluster robust standard error
-coeftest(lmm.02, vcov. = vcovCL, cluster = ~subclass)
+coeftest(lmm.01.S, vcov. = vcovCL, cluster = ~subclass)
 #Calculate the confidence intervals based on cluster robust standard error
-coefci(lmm.02, vcov. = vcovCL, cluster = ~subclass, level = 0.95)
+coefci(lmm.01.S, vcov. = vcovCL, cluster = ~subclass, level = 0.95)
+```
+
+2. Matched Pairs 2: added edu race healthcare
+
+```{r}
+# Anti-N
+matched_dat02 <- match.data(match_02)
+lmm.02.N<-glm(SER_NUCLEOCAPSID_COV~SER_ADM_COV,
+    data=matched_dat02, family = binomial(link = "logit"))
+summary(lmm.02.N)
+
+# Anti_S
+lmm.02.S<-lm(SPIKE_ANTIBODY~SER_ADM_COV,
+    data=matched_dat02, weights = weights)
+summary(lmm.02.S)
+
+#Test the coefficient using cluster robust standard error
+coeftest(lmm.02.S, vcov. = vcovCL, cluster = ~subclass)
+#Calculate the confidence intervals based on cluster robust standard error
+coefci(lmm.02.S, vcov. = vcovCL, cluster = ~subclass, level = 0.95)
 ```
 
 #### Making plots for outcomes (Anti-N & Anti-S)
 
 This time we use **matched** data
 
-plots for Anti-N
+plots for Anti-N (matched_01)
 ```{r}
-p02.N.neg<-ggplot(matched_dat01[matched_dat01$SER_NUCLEOCAPSID_COV==0,]
+p01.N.neg<-ggplot(matched_dat01[matched_dat01$SER_NUCLEOCAPSID_COV==0,]
        , aes(x=as.factor(SER_ADM_COV), y=NUCLEOCAPSID_ANTIBODY)) + 
   labs(x="0=DBS, 1=VBS", y="Anti-N Ab Assay - Negative") +
   labs(title = "Violin Plot for Numeric Anti-N Results, using matched data") +
   geom_violin(trim=F)
 
-p02.N.pos<-ggplot(matched_dat01[matched_dat01$SER_NUCLEOCAPSID_COV==1,]
+p01.N.pos<-ggplot(matched_dat01[matched_dat01$SER_NUCLEOCAPSID_COV==1,]
+       , aes(x=as.factor(SER_ADM_COV), y=NUCLEOCAPSID_ANTIBODY)) + 
+  labs(x="0=DBS, 1=VBS", y="Anti-N Ab Assay - Positive") +
+  labs(title = "Violin Plot for Numeric Anti-N Results, using matched data") +
+  geom_violin(trim=F)
+
+p01.N.neg + geom_boxplot(width=0.05, color='red')
+p01.N.pos + geom_boxplot(width=0.05, color='red')
+
+# Plot not readable for positive results, trim the upper at 5
+p01.N.pos5<-ggplot(matched_dat01[matched_dat01$SER_NUCLEOCAPSID_COV==1 &
+                                 matched_dat01$NUCLEOCAPSID_ANTIBODY<5,]
+       , aes(x=as.factor(SER_ADM_COV), y=NUCLEOCAPSID_ANTIBODY)) + 
+  labs(x="0=DBS, 1=VBS", y="Anti-N Ab Assay - Positive") +
+  labs(title = "Violin Plot for Numeric Anti-N Results, using matched data, trimmed at 5") +
+  geom_violin(trim=F)
+
+p01.N.pos5+ stat_summary(fun.data="mean_sdl", mult=1, 
+                 geom="crossbar", width=0.05, color='red' ) # plus mean & std, biased in this case
+
+p01.N.pos5+ geom_boxplot(width=0.05, color='red')
+```
+
+Plots for Anti-S (matched_01)
+```{r}
+p01.S.neg<-ggplot(matched_dat01[matched_dat01$SER_SPIKE_COV==0,]
+       , aes(x=as.factor(SER_ADM_COV), y=SPIKE_ANTIBODY)) + 
+  labs(x="0=DBS, 1=VBS", y="Anti-S Ab Assay - Negative") +
+  labs(title = "Violin Plot for Quant Anti-S Results, using matched data") +
+  geom_violin(trim=F)
+
+p01.S.pos<-ggplot(matched_dat01[matched_dat01$SER_SPIKE_COV==1,]
+       , aes(x=as.factor(SER_ADM_COV), y=SPIKE_ANTIBODY)) + 
+  labs(x="0=DBS, 1=VBS", y="Anti-S Ab Assay - Positive") +
+  labs(title = "Violin Plot for Quant Anti-S Results, using matched data") +
+  geom_violin(trim=F)
+
+p01.S.neg + geom_boxplot(width=0.05, color='orange')
+p01.S.pos + geom_boxplot(width=0.025, color='orange')
+
+# Plot not readable for positive results, trim the upper at 5
+p01.S.pos20<-ggplot(matched_dat01[matched_dat01$SER_SPIKE_COV==1 &
+                                 matched_dat01$SPIKE_ANTIBODY<20,]
+       , aes(x=as.factor(SER_ADM_COV), y=SPIKE_ANTIBODY)) + 
+  labs(x="0=DBS, 1=VBS", y="Anti-S Ab Assay - Positive") +
+  labs(title = "Violin Plot for Numeric Anti-S Results, using matched data, trimmed at 20") +
+  geom_violin(trim=F)
+
+p01.S.pos20+ geom_boxplot(width=0.05, color='orange')
+```
+
+Plots for match_02 data
+
+Anti-N
+```{r}
+p02.N.neg<-ggplot(matched_dat02[matched_dat02$SER_NUCLEOCAPSID_COV==0,]
+       , aes(x=as.factor(SER_ADM_COV), y=NUCLEOCAPSID_ANTIBODY)) + 
+  labs(x="0=DBS, 1=VBS", y="Anti-N Ab Assay - Negative") +
+  labs(title = "Violin Plot for Numeric Anti-N Results, using matched data") +
+  geom_violin(trim=F)
+
+p02.N.pos<-ggplot(matched_dat02[matched_dat02$SER_NUCLEOCAPSID_COV==1,]
        , aes(x=as.factor(SER_ADM_COV), y=NUCLEOCAPSID_ANTIBODY)) + 
   labs(x="0=DBS, 1=VBS", y="Anti-N Ab Assay - Positive") +
   labs(title = "Violin Plot for Numeric Anti-N Results, using matched data") +
@@ -84,55 +218,50 @@ p02.N.neg + geom_boxplot(width=0.05, color='red')
 p02.N.pos + geom_boxplot(width=0.05, color='red')
 
 # Plot not readable for positive results, trim the upper at 5
-p02.N.pos5<-ggplot(matched_dat01[matched_dat01$SER_NUCLEOCAPSID_COV==1 &
-                                 matched_dat01$NUCLEOCAPSID_ANTIBODY<5,]
+p02.N.pos5<-ggplot(matched_dat02[matched_dat02$SER_NUCLEOCAPSID_COV==1 &
+                                 matched_dat02$NUCLEOCAPSID_ANTIBODY<5,]
        , aes(x=as.factor(SER_ADM_COV), y=NUCLEOCAPSID_ANTIBODY)) + 
   labs(x="0=DBS, 1=VBS", y="Anti-N Ab Assay - Positive") +
   labs(title = "Violin Plot for Numeric Anti-N Results, using matched data, trimmed at 5") +
   geom_violin(trim=F)
 
-p02.N.pos5+ stat_summary(fun.data="mean_sdl", mult=1, 
-                 geom="crossbar", width=0.05, color='red' ) # plus mean & std, biased in this case
-
 p02.N.pos5+ geom_boxplot(width=0.05, color='red')
 ```
 
-Plots for Anti-S
+Plots for Anti-S (matched_02)
 ```{r}
-p03.S.neg<-ggplot(matched_dat01[matched_dat01$SER_SPIKE_COV==0,]
+p02.S.neg<-ggplot(matched_dat02[matched_dat02$SER_SPIKE_COV==0,]
        , aes(x=as.factor(SER_ADM_COV), y=SPIKE_ANTIBODY)) + 
   labs(x="0=DBS, 1=VBS", y="Anti-S Ab Assay - Negative") +
   labs(title = "Violin Plot for Quant Anti-S Results, using matched data") +
   geom_violin(trim=F)
 
-p03.S.pos<-ggplot(matched_dat01[matched_dat01$SER_SPIKE_COV==1,]
+p02.S.pos<-ggplot(matched_dat02[matched_dat02$SER_SPIKE_COV==1,]
        , aes(x=as.factor(SER_ADM_COV), y=SPIKE_ANTIBODY)) + 
   labs(x="0=DBS, 1=VBS", y="Anti-S Ab Assay - Positive") +
   labs(title = "Violin Plot for Quant Anti-S Results, using matched data") +
   geom_violin(trim=F)
 
-p03.S.neg + geom_boxplot(width=0.05, color='orange')
-p03.S.pos + geom_boxplot(width=0.025, color='orange')
+p02.S.neg + geom_boxplot(width=0.05, color='orange')
+p02.S.pos + geom_boxplot(width=0.025, color='orange')
 
 # Plot not readable for positive results, trim the upper at 5
-p03.S.pos20<-ggplot(matched_dat01[matched_dat01$SER_SPIKE_COV==1 &
-                                 matched_dat01$SPIKE_ANTIBODY<20,]
+p02.S.pos20<-ggplot(matched_dat02[matched_dat02$SER_SPIKE_COV==1 &
+                                 matched_dat02$SPIKE_ANTIBODY<20,]
        , aes(x=as.factor(SER_ADM_COV), y=SPIKE_ANTIBODY)) + 
   labs(x="0=DBS, 1=VBS", y="Anti-S Ab Assay - Positive") +
   labs(title = "Violin Plot for Numeric Anti-S Results, using matched data, trimmed at 20") +
   geom_violin(trim=F)
 
-p03.S.pos5+ stat_summary(fun.data="mean_sdl", mult=1, 
-                 geom="crossbar", width=0.05, color='red' ) # plus mean & std, biased in this case
-
-p03.S.pos20+ geom_boxplot(width=0.05, color='orange')
+p02.S.pos20+ geom_boxplot(width=0.05, color='orange')
 ```
-
-
-
-
-
-
-
-
+Calculate five numbers for the plot above
+```{r}
+# DBS
+summary(matched_dat02$SPIKE_ANTIBODY[matched_dat02$SER_ADM_COV==0 &
+                                     matched_dat02$SER_SPIKE_COV==1])
+# VBS
+summary(matched_dat02$SPIKE_ANTIBODY[matched_dat02$SER_ADM_COV==1 &
+                                     matched_dat02$SER_SPIKE_COV==1])
+```
 
