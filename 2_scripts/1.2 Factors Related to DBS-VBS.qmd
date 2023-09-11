@@ -31,6 +31,9 @@ load(CLSA_mn, file='~/dbs-vs-venous-antibodies/1_data/private/CLSA_mn.RData')
 
 # Comprehensive cohort
 load(CLSA_mncom, file = '~/dbs-vs-venous-antibodies/1_data/private/CLSA_mncom.RData')
+
+# Comprehensive cohort, traveling dist < 50
+load(CLSA_com50, file = '~/dbs-vs-venous-antibodies/1_data/private/CLSA_com50.RData')
 ```
 
 # ====Part.I Comprehensive Cohort Only====
@@ -220,6 +223,16 @@ The Outcome var
 proptable_chisq(CLSA_mncom$SER_NUCLEOCAPSID_COV)
 # Anti-N: VBS group has higher positivity
 ```
+
+#### PCR, Hosp, Vaccination and additonal factors
+```{r}
+CLSA_com50<-merge(CLSA_com50, select(CLSA_Time, entity_id, time_vac, time_vac15), by='entity_id',
+      all.x = T, all.y = F)
+
+table(CLSA_com50$time_vac15, CLSA_com50$SER_ADM_COV)
+```
+
+
 
 ## 1.2 Logistic Regression Model: VBS (1) vs DBS (0)
 

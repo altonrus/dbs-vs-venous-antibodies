@@ -1,0 +1,357 @@
+---
+title: "1.1.1 Additional Factors"
+format: html
+editor: visual
+---
+
+## Quarto
+
+Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+
+## Running Code
+
+## Load useful packages
+```{r}
+library(haven)         # Import csv and xlsx files
+library(dplyr)         # Dataset management
+```
+
+## Load dataset
+```{r}
+# CLSA Covid data: this one might not be so useful for hosp and vacc info
+CLSA_Covid<-read.csv("~/dbs-vs-venous-antibodies/1_data/private/2209005_McGill_ARussell_Covid/2209005_McGill_ARussell_Covid_Combined_v1-1.csv")
+
+# CLSA Covid Antibody Data
+CLSA_Antibody <- read.csv("~/dbs-vs-venous-antibodies/1_data/private/2209005_McGill_ARussell_Covid/2209005_McGill_ARussell_Covid_Antibody_Combined_NoIndigenousIdentifiers_v1.csv")
+
+# CLSA_com50: subset, comprehesive cohort, with traveking dist < 50km
+load(CLSA_com50, file = '~/dbs-vs-venous-antibodies/1_data/private/CLSA_com50.RData')
+```
+
+## Make a function for prop tab making:
+```{r}
+proptable_chisq2<-function(r){tab1<-table(r, CLSA_com50$SER_ADM_COV)
+            tab1.prop<-round(prop.table(tab1, margin = 2), digits = 4)*100
+            tab1.prop
+            tab2<-cbind(tab1[,1], tab1.prop[,1], tab1[,2], tab1.prop[,2])
+            colnames(tab2)<-c("DBS N", "DBS %",
+                              "VBS N", "VBS %")
+            #lab1<-attributes(r)
+            #print(lab1$label)
+            print(tab2)
+            print(chisq.test(tab1))
+            fisher.test(tab1, simulate.p.value = T)
+}
+
+# Test the function
+# proptable_chisq2(CLSA_com50$time_vac15)
+```
+
+## Additional Factors: vaccination, PCR+, Time since last outbreak, provinces?
+
+Theoratically if the PCR test results and vaccination can be well-adjusted, we won't need to adjust for other factors. For now let's clear them all up and see what we got in DBS vs VBS comparison: 
+
+```{r}
+# A small subset including hosp, PCR & Vaccination time
+CLSA_Time<-CLSA_Antibody %>%
+  select(entity_id, start_datetime_COV, SER_HOSP_COV: SER_TEST20_COV, # Hosp, Test, Date
+         SER_VAC_COV : SER_DOSE3_DATE_COV                             # Vacc dates
+         )
+```
+
+
+#### 1. PCR and other available tests:
+```{r}
+# Ever tested in the past month - SYM_TEST_COVID
+table(CLSA_Covid$SYM_TEST_COVID, useNA = 'ifany')       # N= 501 Yes
+
+# Is the test positive? - SYM_TESTPOS_COVID
+table(CLSA_Covid$SYM_TESTPOS_COVX, useNA = 'ifany')
+table(CLSA_Covid$SYM_TEST_COVID, CLSA_Covid$SYM_TESTPOS_COVX, useNA = 'ifany')
+
+# Being told have Covid but not tested - SYM_NTCONF_COVID
+
+# ================== Not quite useful, use Antibody data instead ==========#
+```
+
+Using CLSA_Antibody data for PCR test results
+```{r}
+table(CLSA_Time$SER_TEST_COV, useNA = 'ifany')
+# Only 5637 of 19934 have been tested for PCR
+
+# we have 20 variables record the results of PCR tests
+# another 20 slots are for dates
+table(CLSA_Time$SER_RSLT1_COV, useNA = 'ifany')
+table(CLSA_Time$SER_RSLT5_COV, useNA = 'ifany')
+table(CLSA_Time$SER_RSLT10_COV, useNA = 'ifany')
+table(CLSA_Time$SER_RSLT15_COV, useNA = 'ifany')
+table(CLSA_Time$SER_RSLT19_COV, useNA = 'ifany')
+table(CLSA_Time$SER_RSLT20_COV, useNA = 'ifany')
+
+# If test result is not zero, delete the date
+CLSA_Time$SER_TEST1_COV[!(CLSA_Time$SER_RSLT1_COV==1)]<-NA
+CLSA_Time$SER_TEST2_COV[!(CLSA_Time$SER_RSLT2_COV==1)]<-NA
+CLSA_Time$SER_TEST3_COV[!(CLSA_Time$SER_RSLT3_COV==1)]<-NA
+CLSA_Time$SER_TEST4_COV[!(CLSA_Time$SER_RSLT4_COV==1)]<-NA
+CLSA_Time$SER_TEST5_COV[!(CLSA_Time$SER_RSLT5_COV==1)]<-NA
+
+CLSA_Time$SER_TEST6_COV[!(CLSA_Time$SER_RSLT6_COV==1)]<-NA
+CLSA_Time$SER_TEST7_COV[!(CLSA_Time$SER_RSLT7_COV==1)]<-NA
+CLSA_Time$SER_TEST8_COV[!(CLSA_Time$SER_RSLT8_COV==1)]<-NA
+CLSA_Time$SER_TEST9_COV[!(CLSA_Time$SER_RSLT9_COV==1)]<-NA
+CLSA_Time$SER_TEST10_COV[!(CLSA_Time$SER_RSLT10_COV==1)]<-NA
+
+CLSA_Time$SER_TEST11_COV[!(CLSA_Time$SER_RSLT11_COV==1)]<-NA
+CLSA_Time$SER_TEST12_COV[!(CLSA_Time$SER_RSLT12_COV==1)]<-NA
+CLSA_Time$SER_TEST13_COV[!(CLSA_Time$SER_RSLT13_COV==1)]<-NA
+CLSA_Time$SER_TEST14_COV[!(CLSA_Time$SER_RSLT14_COV==1)]<-NA
+CLSA_Time$SER_TEST15_COV[!(CLSA_Time$SER_RSLT15_COV==1)]<-NA
+
+CLSA_Time$SER_TEST16_COV[!(CLSA_Time$SER_RSLT16_COV==1)]<-NA
+CLSA_Time$SER_TEST17_COV[!(CLSA_Time$SER_RSLT17_COV==1)]<-NA
+CLSA_Time$SER_TEST18_COV[!(CLSA_Time$SER_RSLT18_COV==1)]<-NA
+CLSA_Time$SER_TEST19_COV[!(CLSA_Time$SER_RSLT19_COV==1)]<-NA
+CLSA_Time$SER_TEST20_COV[!(CLSA_Time$SER_RSLT20_COV==1)]<-NA
+
+# correct the format to Date
+CLSA_Time$start_datetime_COV<-as.Date((CLSA_Time$start_datetime_COV), format="%Y-%m-%d")
+CLSA_Time$SER_TEST1_COV<-as.Date((CLSA_Time$SER_TEST1_COV), format="%Y-%m-%d")
+CLSA_Time$SER_TEST2_COV<-as.Date((CLSA_Time$SER_TEST2_COV), format="%Y-%m-%d")
+CLSA_Time$SER_TEST3_COV<-as.Date((CLSA_Time$SER_TEST3_COV), format="%Y-%m-%d")
+CLSA_Time$SER_TEST4_COV<-as.Date((CLSA_Time$SER_TEST4_COV), format="%Y-%m-%d")
+CLSA_Time$SER_TEST5_COV<-as.Date((CLSA_Time$SER_TEST5_COV), format="%Y-%m-%d")
+
+CLSA_Time$SER_TEST6_COV<-as.Date((CLSA_Time$SER_TEST6_COV), format="%Y-%m-%d")
+CLSA_Time$SER_TEST7_COV<-as.Date((CLSA_Time$SER_TEST7_COV), format="%Y-%m-%d")
+CLSA_Time$SER_TEST8_COV<-as.Date((CLSA_Time$SER_TEST8_COV), format="%Y-%m-%d")
+CLSA_Time$SER_TEST9_COV<-as.Date((CLSA_Time$SER_TEST9_COV), format="%Y-%m-%d")
+CLSA_Time$SER_TEST10_COV<-as.Date((CLSA_Time$SER_TEST10_COV), format="%Y-%m-%d")
+
+CLSA_Time$SER_TEST11_COV<-as.Date((CLSA_Time$SER_TEST11_COV), format="%Y-%m-%d")
+CLSA_Time$SER_TEST12_COV<-as.Date((CLSA_Time$SER_TEST12_COV), format="%Y-%m-%d")
+CLSA_Time$SER_TEST13_COV<-as.Date((CLSA_Time$SER_TEST13_COV), format="%Y-%m-%d")
+CLSA_Time$SER_TEST14_COV<-as.Date((CLSA_Time$SER_TEST14_COV), format="%Y-%m-%d")
+CLSA_Time$SER_TEST15_COV<-as.Date((CLSA_Time$SER_TEST15_COV), format="%Y-%m-%d")
+
+CLSA_Time$SER_TEST16_COV<-as.Date((CLSA_Time$SER_TEST16_COV), format="%Y-%m-%d")
+CLSA_Time$SER_TEST17_COV<-as.Date((CLSA_Time$SER_TEST17_COV), format="%Y-%m-%d")
+CLSA_Time$SER_TEST18_COV<-as.Date((CLSA_Time$SER_TEST18_COV), format="%Y-%m-%d")
+CLSA_Time$SER_TEST19_COV<-as.Date((CLSA_Time$SER_TEST19_COV), format="%Y-%m-%d")
+CLSA_Time$SER_TEST20_COV<-as.Date((CLSA_Time$SER_TEST20_COV), format="%Y-%m-%d")
+
+
+# now find the last day of positive PCR test:
+CLSA_Time<-CLSA_Time %>% 
+  rowwise() %>%
+  mutate(PCR_DATE_last = max(SER_TEST1_COV, SER_TEST2_COV, SER_TEST3_COV,
+                             SER_TEST4_COV, SER_TEST5_COV, SER_TEST6_COV,
+                             SER_TEST7_COV, SER_TEST8_COV, SER_TEST9_COV,
+                             SER_TEST10_COV, SER_TEST11_COV, SER_TEST12_COV,
+                             SER_TEST13_COV, SER_TEST14_COV, SER_TEST15_COV,
+                             SER_TEST16_COV, SER_TEST17_COV, SER_TEST18_COV,
+                             SER_TEST19_COV, SER_TEST20_COV, na.rm = T))
+
+# if all NAs, max()
+CLSA_Time$PCR_DATE_last[is.infinite(CLSA_Time$PCR_DATE_last)==T]<-NA
+summary(CLSA_Time$PCR_DATE_last)
+
+# Calculate time since last PCR+ test
+CLSA_Time$pcr_time<-CLSA_Time$start_datetime_COV - CLSA_Time$PCR_DATE_last
+
+# Add pcr_time to com50 data
+CLSA_com50<-merge(CLSA_com50, select(CLSA_Time, entity_id, pcr_time), by='entity_id',
+      all.x = T, all.y = F)
+
+hist(as.numeric(CLSA_com50$pcr_time), breaks = 40,
+     main = 'Distribution of time since last PCR+ Test',
+     xlab = 'Time Since Last PCR+ Test (Days)')
+table(CLSA_com50$pcr_time, useNA = "ifany")
+# too much missing, not useful
+
+# Temp cleaning code for CLSA_com50
+# CLSA_com50<-select(CLSA_com50, -c(SER_HOSP_COV, SER_RSLT_SUM, SER_RSLT_SUM_bin,
+#                                   pcr_time.x, pcr_time.y))
+
+```
+
+Numbers of PCR+ tests
+```{r}
+if_else2<-function(x){
+  if_else(x==1,1,0)
+}
+
+# Number of all PCR+ tests  
+CLSA_Temp<-CLSA_Time %>%
+  select(SER_RSLT1_COV : SER_RSLT20_COV) %>%
+  mutate_all(., if_else2)
+
+CLSA_Time$SER_RSLT_SUM<-rowSums(select(CLSA_Temp, SER_RSLT1_COV : SER_RSLT20_COV),na.rm = T)
+table(CLSA_Time$SER_RSLT_SUM, useNA = 'ifany')
+
+# Make it binary
+CLSA_Time$SER_RSLT_SUM_bin<-rep(0, 19334)
+CLSA_Time$SER_RSLT_SUM_bin[CLSA_Time$SER_RSLT_SUM %in% c(1,2,5)]<-1
+table(CLSA_Time$SER_RSLT_SUM_bin, CLSA_Time$SER_RSLT_SUM, useNA = 'ifany')
+
+CLSA_Time$SER_RSLT_SUM_bin15<-rep(0, 19334)
+CLSA_Time$SER_RSLT_SUM_bin15[CLSA_Time$pcr_time>15 &
+                             is.na(CLSA_Time$pcr_time)==F]<-1
+table(CLSA_Time$SER_RSLT_SUM_bin15, CLSA_Time$SER_RSLT_SUM, useNA = 'ifany')
+
+# Merge those new variables to com50
+CLSA_com50<-merge(CLSA_com50, select(CLSA_Time, entity_id, SER_RSLT_SUM, 
+                                     SER_RSLT_SUM_bin, SER_RSLT_SUM_bin15),
+                  by='entity_id', all.x = T, all.y = F)
+table(CLSA_com50$SER_RSLT_SUM_bin15, CLSA_com50$SER_RSLT_SUM, useNA = 'ifany')
+
+save(CLSA_com50, file = '~/dbs-vs-venous-antibodies/1_data/private/CLSA_com50.RData')
+```
+
+#### Showcase with {dplyr}
+```{r}
+# Those with Days to Last PCR+ Test Available (N=67)
+CLSA_com50 %>%
+  select(., entity_id, pcr_time, SER_RSLT_SUM, SER_RSLT_SUM_bin) %>%
+  .[is.na(.$pcr_time)==F,]
+
+# Those who ever had PCR+ Tests (N=68)
+CLSA_com50 %>%
+  select(., entity_id, pcr_time, SER_RSLT_SUM, SER_RSLT_SUM_bin) %>%
+  .[.$SER_RSLT_SUM_bin==1,]
+
+# Those who had PCR+ test >15 days ago, N=64
+CLSA_com50 %>%
+  select(., entity_id, pcr_time, SER_RSLT_SUM, SER_RSLT_SUM_bin) %>%
+  .[.$SER_RSLT_SUM_bin==1 & .$pcr_time>15 & is.na(.$pcr_time>15)==F,]
+
+# id = 10935126, this one had 1 PCR+ test before but forgot about the date 
+CLSA_Antibody %>%
+  select(entity_id, SER_RSLT1_COV, SER_RSLT2_COV, SER_TEST1_COV, SER_TEST2_COV) %>%
+  .[.$entity_id == 10935126,]
+```
+
+
+##### Show the distribution DBS vs VBS
+```{r}
+CLSA_com50<-merge(CLSA_com50, select(CLSA_Time, entity_id, SER_RSLT_SUM, SER_RSLT_SUM_bin),
+                  by='entity_id', all.x = T, all.y = F)
+table(CLSA_com50$SER_RSLT_SUM, useNA = 'ifany')
+table(CLSA_com50$SER_RSLT_SUM_bin, useNA = 'ifany') # only 40 have been positive results
+
+save(CLSA_com50, file = '~/dbs-vs-venous-antibodies/1_data/private/CLSA_com50.RData')
+
+# Making prop tables
+proptable_chisq2(CLSA_com50$SER_RSLT_SUM_bin)
+proptable_chisq2(CLSA_com50$SER_RSLT_SUM)
+```
+
+
+#### 2. Vaccination Info （CLSA_Antibody Data）
+```{r}
+CLSA_Antibody %>%
+  .[.$SER_TEST_COV>=1,] %>%
+  select(., entity_id, SER_AGE_COV, SER_SEX_COV, start_datetime_COV,
+         SER_HOSP_COV, SER_TEST_COV, SER_TEST_NB_COV, SER_RSLT1_COV,
+         SER_RSLT2_COV, SER_RSLT3_COV, SER_TEST1_COV, SER_TEST2_COV,
+         SER_TEST3_COV
+) # Looks good
+
+# Do vaccination date first
+table(CLSA_Time$SER_VAC_COV, useNA = 'ifany')          # have you received at least one dose?
+table(CLSA_Time$SER_VDOSE_COV, useNA = 'ifany')        # number of dose received
+
+table(CLSA_Time$SER_VAC_COV, CLSA_Time$SER_VDOSE_COV, useNA = 'ifany')
+
+# Clean the dose date data
+CLSA_Time$SER_DOSE1_DATE_COV<-as.Date((CLSA_Time$SER_DOSE1_DATE_COV), format="%Y-%m-%d")
+CLSA_Time$SER_DOSE2_DATE_COV<-as.Date((CLSA_Time$SER_DOSE2_DATE_COV), format="%Y-%m-%d")
+CLSA_Time$SER_DOSE3_DATE_COV<-as.Date((CLSA_Time$SER_DOSE3_DATE_COV), format="%Y-%m-%d")
+CLSA_Time$start_datetime_COV<-as.Date((CLSA_Time$start_datetime_COV), format="%Y-%m-%d")
+
+CLSA_Time<-CLSA_Time %>% 
+  rowwise() %>%
+  mutate(DOSE_DATE_last = max(SER_DOSE1_DATE_COV, SER_DOSE2_DATE_COV,
+                              SER_DOSE3_DATE_COV, na.rm = T))
+CLSA_Time$DOSE_DATE_last[is.infinite(CLSA_Time$DOSE_DATE_last)==T]<-NA
+summary(CLSA_Time$DOSE_DATE_last)
+
+# number of days since last vaccinatiion
+CLSA_Time<-CLSA_Time %>%
+  mutate(time_vac = start_datetime_COV - DOSE_DATE_last)
+
+summary(as.numeric(CLSA_Time$time_vac))
+hist(as.numeric(CLSA_Time$time_vac), breaks = 40,
+     xlab = 'Time Since Last Vaccination (Days)')
+
+# show those with negative, N=19 
+time_vac_neg<-CLSA_Time %>%
+  .[as.numeric(.$time_vac)<0 & is.na(.$time_vac)==F &
+    .$SER_VDOSE_COV>1,] %>%
+  select(entity_id, start_datetime_COV, DOSE_DATE_last, SER_VDOSE_COV, time_vac)
+# All those with negative and multiple vac date have two doses, most 1st dose time missing
+
+# Replace those with 2 doses and neg vac_time
+CLSA_Time %>%
+  .[.$entity_id %in% time_vac_neg$entity_id,] %>%
+  mutate(time_vac = start_datetime_COV - SER_DOSE1_DATE_COV)
+CLSA_Time$time_vac[CLSA_Time$entity_id==44259476]<-24
+CLSA_Time$time_vac[CLSA_Time$entity_id==51191412]<-34
+CLSA_Time$time_vac[CLSA_Time$entity_id==58376055]<-41
+
+# Then code the rest of vaccination time to 0
+CLSA_Time$time_vac[as.numeric(CLSA_Time$time_vac)<0]<-NA
+
+# if vac_time > 15, vaccines takes ~ 15 days to boost immunity and elevate Ab level
+CLSA_Time$time_vac15 <- rep(0,19334)
+CLSA_Time$time_vac15[CLSA_Time$time_vac>15 & CLSA_Time$time_vac<365]<-1
+```
+merge time_vac15 to com50 cohort data:
+```{r}
+CLSA_com50<-merge(CLSA_com50, select(CLSA_Time, entity_id, time_vac, time_vac15), by='entity_id',
+      all.x = T, all.y = F)
+
+table(CLSA_com50$time_vac15, useNA = 'ifany')
+proptable_chisq2(CLSA_com50$time_vac15)
+
+save(CLSA_com50, file = '~/dbs-vs-venous-antibodies/1_data/private/CLSA_com50.RData')
+```
+
+
+
+Histogram: using comprehensive cohort (<50 km)
+```{r}
+hist(as.numeric(CLSA_com50$time_vac), breaks = 40,
+     xlab = 'Time Since Last Vaccination (Days)',
+     main = "Distribution of Time Since Last Vaccination, 
+             Comprehensive Cohort < 50km")
+```
+
+
+#### 3. Hospitalization: have you ever been hospitalized due to Covid-19?
+```{r}
+table(CLSA_Time$SER_HOSP_COV, useNA = 'ifany')
+
+# only around ~ 770 persons answered this question, HUGE missing
+CLSA_Time$SER_HOSP_COV[CLSA_Time$SER_HOSP_COV %in% c(-99999, 98)]<-NA
+
+# Anyway, add it to com50
+CLSA_com50<-merge(CLSA_com50, select(CLSA_Time, entity_id, SER_HOSP_COV), by='entity_id',
+      all.x = T, all.y = F)
+table(CLSA_com50$SER_HOSP_COV, useNA = 'ifany') # only 9 have been hospitalized
+
+save(CLSA_com50, file = '~/dbs-vs-venous-antibodies/1_data/private/CLSA_com50.RData')
+```
+#### Alton's question:Of those 9 how many were veneous?
+```{r}
+table(CLSA_com50$SER_HOSP_COV, CLSA_com50$SER_ADM_COV,
+      useNA = 'ifany') 
+proptable_chisq2(CLSA_com50$SER_HOSP_COV)
+
+# only 9 have been hospitalized
+```
+#### 4. Geographic Regions: five groups:
+```{r}
+#  BC, (AB+SK+MT), ON, QC, (All Atlantic provinces in the east)
+```
+
+#### 5. Time since last outbreak

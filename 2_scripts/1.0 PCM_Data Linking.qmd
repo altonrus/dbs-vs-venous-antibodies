@@ -395,126 +395,6 @@ table(CLSA_m$maj_health, CLSA_m$maj_health_bin, useNA = 'ifany')
 # 2.3 add a col for all health conditions
 ```
 
-## Additional Factors: vaccination, PCR+, Time since last outbreak, provinces?
-
-Theoratically if the PCR test results and vaccination can be well-adjusted, we won't need to adjust for other factors. For now let's clear them all up and see what we got in DBS vs VBS comparison: 
-
-1. Vaccination
-```{r}
-SER_VAC_COV
-SER_VDOSE_COV
-SER_DOSE1_DATE_COV
-SER_DOSE2_DATE_COV
-SER_DOSE3_DATE_COV
-
-```
-
-2. PCR and other available tests:
-```{r}
-# Ever tested in the past month - SYM_TEST_COVID
-table(CLSA_Covid$SYM_TEST_COVID, useNA = 'ifany')       # N= 501 Yes
-
-# Is the test positive? - SYM_TESTPOS_COVID
-table(CLSA_Covid$SYM_TESTPOS_COVX, useNA = 'ifany')
-table(CLSA_Covid$SYM_TEST_COVID, CLSA_Covid$SYM_TESTPOS_COVX, useNA = 'ifany')
-
-# Being told have Covid but not tested - SYM_NTCONF_COVID
-
-# ================== Not quite useful, use Antibody data instead ==========#
-
-CLSA_Antibody %>%
-  .[.$SER_TEST_COV>=1,] %>%
-  select(., entity_id, SER_AGE_COV, SER_SEX_COV, start_datetime_COV,
-         SER_HOSP_COV, SER_TEST_COV, SER_TEST_NB_COV, SER_RSLT1_COV,
-         SER_RSLT2_COV, SER_RSLT3_COV, SER_TEST1_COV, SER_TEST2_COV,
-         SER_TEST3_COV
-) # Looks good
-
-# A small subset including hosp, PCR & Vaccination time
-CLSA_Time<-CLSA_Antibody %>%
-  select(entity_id, start_datetime_COV, SER_HOSP_COV: SER_TEST20_COV, # Test dates
-         SER_VAC_COV : SER_DOSE3_DATE_COV                             # Vacc dates
-         )
-
-table(CLSA_Time$SER_TEST_COV, useNA = 'ifany')
-# Only 5637 of 19934 have been tested for PCR
-
-
-table(CLSA_Time$SER_RSLT1_COV, useNA = 'ifany')
-table(CLSA_Time$SER_RSLT5_COV, useNA = 'ifany')
-table(CLSA_Time$SER_RSLT10_COV, useNA = 'ifany')
-table(CLSA_Time$SER_RSLT15_COV, useNA = 'ifany')
-table(CLSA_Time$SER_RSLT19_COV, useNA = 'ifany')
-table(CLSA_Time$SER_RSLT20_COV, useNA = 'ifany')
-
-# Do vaccination date first
-table(CLSA_Time$SER_VAC_COV, useNA = 'ifany')          # have you received at least one dose?
-table(CLSA_Time$SER_VDOSE_COV, useNA = 'ifany')        # number of dose received
-
-table(CLSA_Time$SER_VAC_COV, CLSA_Time$SER_VDOSE_COV, useNA = 'ifany')
-
-# Clean the dose date data
-CLSA_Time$SER_DOSE1_DATE_COV<-as.Date((CLSA_Time$SER_DOSE1_DATE_COV), format="%Y-%m-%d")
-CLSA_Time$SER_DOSE2_DATE_COV<-as.Date((CLSA_Time$SER_DOSE2_DATE_COV), format="%Y-%m-%d")
-CLSA_Time$SER_DOSE3_DATE_COV<-as.Date((CLSA_Time$SER_DOSE3_DATE_COV), format="%Y-%m-%d")
-CLSA_Time$start_datetime_COV<-as.Date((CLSA_Time$start_datetime_COV), format="%Y-%m-%d")
-
-CLSA_Time<-CLSA_Time %>% 
-  rowwise() %>%
-  mutate(DOSE_DATE_last = max(SER_DOSE1_DATE_COV, SER_DOSE2_DATE_COV,
-                              SER_DOSE3_DATE_COV, na.rm = T))
-CLSA_Time$DOSE_DATE_last[is.infinite(CLSA_Time$DOSE_DATE_last)==T]<-NA
-summary(CLSA_Time$DOSE_DATE_last)
-
-CLSA_Time<-CLSA_Time %>%
-  mutate(time_vac = start_datetime_COV - DOSE_DATE_last)
-
-summary(as.numeric(CLSA_Time$time_vac))
-hist(as.numeric(CLSA_Time$time_vac), breaks = 40,
-     xlab = 'Time Since Last Vaccination (Days)')
-
-# show those with negative, N=19 
-time_vac_neg<-CLSA_Time %>%
-  .[as.numeric(.$time_vac)<0 & is.na(.$time_vac)==F &
-    .$SER_VDOSE_COV>1,] %>%
-  select(entity_id, start_datetime_COV, DOSE_DATE_last, SER_VDOSE_COV, time_vac)
-# All those with negative and multiple vac date have two doses
-
-# Replace those with 2 doses and neg vac_time
-CLSA_Time %>%
-  .[.$entity_id %in% time_vac_neg$entity_id,] %>%
-  mutate(time_vac = start_datetime_COV - SER_DOSE1_DATE_COV)
-CLSA_Time$time_vac[CLSA_Time$entity_id==44259476]<-24
-CLSA_Time$time_vac[CLSA_Time$entity_id==51191412]<-34
-
-# if vac_time > 15
-CLSA_Time$time_vac15 <- rep(0,19334)
-CLSA_Time$time_vac15[CLSA_Time$time_vac>15 & CLSA_Time$time_vac<365]<-1
-
-CLSA_Temp<-merge(CLSA_com50, select(CLSA_Time, entity_id, time_vac, time_vac15), by='entity_id',
-      all.x = T, all.y = F)
-
-table(CLSA_Temp$time_vac15, CLSA_Temp$SER_ADM_COV)
-```
-
-```{r}
-proptable_chisq2<-function(r){tab1<-table(r, CLSA_Temp$SER_ADM_COV)
-            tab1.prop<-round(prop.table(tab1, margin = 2), digits = 4)*100
-            tab1.prop
-            tab2<-cbind(tab1[,1], tab1.prop[,1], tab1[,2], tab1.prop[,2])
-            colnames(tab2)<-c("DBS N", "DBS %",
-                              "VBS N", "VBS %")
-            #lab1<-attributes(r)
-            #print(lab1$label)
-            print(tab2)
-            print(chisq.test(tab1))
-            fisher.test(tab1, simulate.p.value = T)
-}
-
-proptable_chisq2(CLSA_Temp$time_vac15)
-```
-
-
 ### Updates Aug 21st 2023:
 
 ### 1.4 CLSA quantitative assay results are availble, merge it
@@ -704,7 +584,7 @@ plot(hgB, col = 'coral', add = TRUE) # Add 2nd histogram using different color
 
 ## Create Subsets
 
-#### 1. Compregensuve Cohort Subset
+#### 1. Comprehensive Cohort Subset
 
 ```{r}
 # Making subset
@@ -713,15 +593,33 @@ CLSA_mn$SER_ADM_COV[CLSA_mn$SER_ADM_COV==2]<-0 # Making DBS = 0 (ref)
 CLSA_mncom$SER_ADM_COV[CLSA_mncom$SER_ADM_COV==2]<-0 # Making DBS = 0 (ref)
 ```
 
-##### Merge traveling dist to CLSA_mncom
+Merge traveling dist to CLSA_mncom
+
 ```{r}
 CLSA_mncom<-merge(CLSA_mncom, select(CLSA_FSA, FSA_COVID, dist_min), by='FSA_COVID',
       all = FALSE)
+# Only keep those <=50 km
+CLSA_com50<-CLSA_mncom[CLSA_mncom$dist_min<=50000,]
 
 # Save the subset
 save(CLSA_mncom, file = '~/dbs-vs-venous-antibodies/1_data/private/CLSA_mncom.RData')
+save(CLSA_com50, file = '~/dbs-vs-venous-antibodies/1_data/private/CLSA_com50.RData')
 ```
 
+#### 1.a Comprehensive Cohort, traveling dist \< 50km
+
+```{r}
+# This subset was created in 1.1 Traveling Distance
+load(CLSA_com50, file = "~/dbs-vs-venous-antibodies/1_data/private/CLSA_com50.RData")
+```
+
+On the top of CLSA_mncom subset, we selected those live within 50 km of the data collection sites (DCS), N=7230 participants were finally selected. Then we added additional covariates, including:
+
+-   Time since last PCR+ Test (Days)
+
+-   Time since last vaccination
+
+-   Binary: Time to PCR
 
 #### 2. Alberta Subset (A good example for traveling dist analysis)
 

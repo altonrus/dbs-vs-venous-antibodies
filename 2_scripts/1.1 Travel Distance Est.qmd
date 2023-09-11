@@ -175,10 +175,12 @@ FSA_Center_small$Gmap_dist[65]<-32000
 FSA_Center_small$Gmap_dist[146]<-812000
 ```
 
-***
+------------------------------------------------------------------------
+
 ## Part II. Calculate distance for comprehensive cohort
 
 #### 2.1 create a list for FSAs in CLSA_mncom subset
+
 ```{r}
 CLSA_FSA<-unique(select(CLSA_mncom, PROV_COVID, FSA_COVID))
 
@@ -186,6 +188,7 @@ table(CLSA_FSA$PROV_COVID, useNA = 'ifany')
 ```
 
 #### 2.2 calculate the coordinate of the center of each FSA
+
 ```{r}
 # Now do it again for all provinces in CLSA
 centroid_10<-st_centroid(s.sf.10)
@@ -203,6 +206,7 @@ ggplot() +
 ```
 
 #### Convert the coordinate for Gmap
+
 ```{r}
 centroid_10$coord<-st_transform(centroid_10$geometry, 4326)
 
@@ -221,6 +225,7 @@ CLSA_FSA<-merge(CLSA_FSA, centroid_10s, by.x = 'FSA_COVID', by.y = 'CFSAUID',all
 #### 2.3 Calculate the distance seperately for those in diff provinces
 
 #### 2.3.1 Newfoundland
+
 ```{r}
 set.api.key("AIzaSyAuJVVKUamO_OVHfsUavMN2zzjjQ7sAB9I")
 
@@ -245,6 +250,7 @@ CLSA_FSA$dist_01[is.na(CLSA_FSA$alt_loc)==F & CLSA_FSA$PROV_COVID==10]<-dist_01b
 ```
 
 #### 2.3.2 PEI, Nova Scotia & New Brunswick
+
 ```{r}
 dist_01<-gmapsdistance(origin = CLSA_FSA[CLSA_FSA$PROV_COVID %in% c(11,12,13),]$coord_text,
                        destination = rep("5247 Morris St, Halifax, NS B3J 1B6", 55),
@@ -255,6 +261,7 @@ CLSA_FSA$dist_01[CLSA_FSA$PROV_COVID %in% c(11,12,13)]<-dist_01$Distance$Distanc
 #### 2.3.3 Quebec
 
 ##### Montreal
+
 ```{r}
 # Fix coord for NAs
 CLSA_FSA$alt_loc[CLSA_FSA$FSA_COVID=='G0G']<-'Havre-Saint-Pierre, QC G0G 1P0'
@@ -277,6 +284,7 @@ CLSA_FSA$dist_01[is.na(CLSA_FSA$alt_loc)==F & CLSA_FSA$PROV_COVID==24]<-dist_01b
 ```
 
 ##### Sherbrook
+
 ```{r}
 dist_02<-gmapsdistance(origin = CLSA_FSA[CLSA_FSA$PROV_COVID==24,]$coord_text,
                        destination = rep("1036 Rue Belvédère S, Sherbrooke, QC J1H 4C4", 209),
@@ -293,6 +301,7 @@ CLSA_FSA$dist_02[is.na(CLSA_FSA$alt_loc)==F & CLSA_FSA$PROV_COVID==24]<-dist_02b
 ```
 
 ##### Ottawa
+
 ```{r}
 dist_03<-gmapsdistance(origin = CLSA_FSA[CLSA_FSA$PROV_COVID==24,]$coord_text,
                        destination = rep("43 Bruyère St, Ottawa, ON K1N 5C7", 209),
@@ -311,6 +320,7 @@ CLSA_FSA$dist_03[is.na(CLSA_FSA$alt_loc)==F & CLSA_FSA$PROV_COVID==24]<-dist_03b
 #### 2.3.4 Ontario
 
 ##### Ottawa
+
 ```{r}
 # Fix coord for NAs
 CLSA_FSA$alt_loc[CLSA_FSA$FSA_COVID=='P0X']<-'Longbow Lake, ON P0X 1H0'
@@ -332,6 +342,7 @@ CLSA_FSA$dist_01[is.na(CLSA_FSA$alt_loc)==F & CLSA_FSA$PROV_COVID==35]<-dist_01b
 ```
 
 ##### Hamilton
+
 ```{r}
 dist_02<-gmapsdistance(origin = CLSA_FSA[CLSA_FSA$PROV_COVID==35,]$coord_text,
                        destination = rep("175 Longwood Rd S, Hamilton, ON L8P 0A1", 159),
@@ -347,6 +358,7 @@ CLSA_FSA$dist_02[is.na(CLSA_FSA$alt_loc)==F & CLSA_FSA$PROV_COVID==35]<-dist_02b
 ```
 
 ##### Montreal
+
 ```{r}
 dist_03<-gmapsdistance(origin = CLSA_FSA[CLSA_FSA$PROV_COVID==35,]$coord_text,
                        destination = rep("2155 Guy St, Montreal, QC H3H 2L9", 159),
@@ -362,6 +374,7 @@ CLSA_FSA$dist_03[is.na(CLSA_FSA$alt_loc)==F & CLSA_FSA$PROV_COVID==35]<-dist_03b
 ```
 
 ##### Winnipeg
+
 ```{r}
 dist_04<-gmapsdistance(origin = CLSA_FSA[CLSA_FSA$PROV_COVID==35,]$coord_text,
                        destination = rep("2109 Portage Ave, Winnipeg, MB R3J 0L3", 159),
@@ -377,6 +390,7 @@ CLSA_FSA$dist_04[is.na(CLSA_FSA$alt_loc)==F & CLSA_FSA$PROV_COVID==35]<-dist_04b
 ```
 
 #### 2.3.5 Manitoba
+
 ```{r}
 dist_01<-gmapsdistance(origin = CLSA_FSA[CLSA_FSA$PROV_COVID==46,]$coord_text,
                        destination = rep("2109 Portage Ave, Winnipeg, MB R3J 0L3", 45),
@@ -387,6 +401,7 @@ CLSA_FSA$dist_01[CLSA_FSA$PROV_COVID==46]<-dist_01$Distance$Distance
 #### 2.3.6 Saskatchewan
 
 ##### Winnipeg
+
 ```{r}
 # Fix coord for NAs
 CLSA_FSA$alt_loc[CLSA_FSA$FSA_COVID=='S0M']<-'Buffalo Narrows, SK'
@@ -408,6 +423,7 @@ CLSA_FSA$dist_01[is.na(CLSA_FSA$alt_loc)==F & CLSA_FSA$PROV_COVID==47]<-dist_01b
 ```
 
 ##### Calgary
+
 ```{r}
 dist_02<-gmapsdistance(origin = CLSA_FSA[CLSA_FSA$PROV_COVID==47,]$coord_text,
                        destination = rep("3280 Hospital Dr NW, Calgary, AB T2N 4Z6", 8),
@@ -423,7 +439,9 @@ CLSA_FSA$dist_02[is.na(CLSA_FSA$alt_loc)==F & CLSA_FSA$PROV_COVID==47]<-dist_02b
 ```
 
 #### 2.3.7 Alberta
+
 ##### Calgary
+
 ```{r}
 # Fix coord for NAs
 CLSA_FSA$alt_loc[CLSA_FSA$FSA_COVID=='T4B']<-'Goldenrod Community Hall, AB-772, Airdrie, AB T0M 0E0'
@@ -445,7 +463,9 @@ CLSA_FSA$dist_01[is.na(CLSA_FSA$alt_loc)==F & CLSA_FSA$PROV_COVID==48]<-dist_01b
 ```
 
 #### 2.3.8 BC
+
 ##### Surrey
+
 ```{r}
 dist_01<-gmapsdistance(origin = CLSA_FSA[CLSA_FSA$PROV_COVID==59,]$coord_text,
                        destination = rep("13450 102 Ave, Surrey, BC V3T 0A3", 149),
@@ -454,6 +474,7 @@ CLSA_FSA$dist_01[CLSA_FSA$PROV_COVID==59]<-dist_01$Distance$Distance
 ```
 
 ##### Victoria
+
 ```{r}
 dist_02<-gmapsdistance(origin = CLSA_FSA[CLSA_FSA$PROV_COVID==59,]$coord_text,
                        destination = rep("63 Gorge Rd E, Victoria, BC V9A 1L2", 149),
@@ -462,6 +483,7 @@ CLSA_FSA$dist_02[CLSA_FSA$PROV_COVID==59]<-dist_02$Distance$Distance
 ```
 
 ##### Vancover
+
 ```{r}
 dist_03<-gmapsdistance(origin = CLSA_FSA[CLSA_FSA$PROV_COVID==59,]$coord_text,
                        destination = rep("2215 Wesbrook Mall, Vancouver, BC V6T 1Z3", 149),
@@ -470,6 +492,7 @@ CLSA_FSA$dist_03[CLSA_FSA$PROV_COVID==59]<-dist_03$Distance$Distance
 ```
 
 ##### Calgary
+
 ```{r}
 dist_04<-gmapsdistance(origin = CLSA_FSA[CLSA_FSA$PROV_COVID==59,]$coord_text,
                        destination = rep("3280 Hospital Dr NW, Calgary, AB T2N 4Z6", 149),
@@ -478,6 +501,7 @@ CLSA_FSA$dist_04[CLSA_FSA$PROV_COVID==59]<-dist_04$Distance$Distance
 ```
 
 #### Min of all
+
 ```{r}
 CLSA_FSA$dist_min<-min(c(CLSA_FSA$dist_01, CLSA_FSA$dist_02), na.rm = T)
 
@@ -489,6 +513,7 @@ CLSA_FSA<-CLSA_FSA %>%
 ```
 
 ## Plot
+
 ```{r}
 hist(CLSA_temp$dist_min[CLSA_temp$SER_ADM_COV==0]/1000, breaks = 25,
      xlab = 'Travel Distance (km)',
@@ -497,7 +522,9 @@ hist(CLSA_temp$dist_min[CLSA_temp$SER_ADM_COV==1]/1000, breaks = 25,
      xlab = 'Travel Distance (km)',
      main = "Histogram of Min Traveling Distance, VBS")
 ```
+
 Mean traveling dist in two groups
+
 ```{r}
 # Everyone in comprehensive cohort
 summary(CLSA_mncom$dist_min[CLSA_mncom$SER_ADM_COV==0]/1000) # DBS
@@ -516,12 +543,15 @@ var.test(dist_min~SER_ADM_COV,
 CLSA_mncom[CLSA_mncom$dist_min<50000,]  %>%
   t.test(dist_min~SER_ADM_COV, data=., var.equal=F)
 ```
-Making <50 KM subset
+
+Making \<50 KM subset
+
 ```{r}
 CLSA_com50<-CLSA_mncom[CLSA_mncom$dist_min<50000,]
 ```
 
-***
+------------------------------------------------------------------------
+
 ## Save the FSA Center Data
 
 ```{r}
