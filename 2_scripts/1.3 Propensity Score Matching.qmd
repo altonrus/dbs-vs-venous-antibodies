@@ -13,6 +13,7 @@ Quarto enables you to weave together content and executable code into a finished
 ## Load Packages
 
 ```{r}
+library(dplyr)
 library(MatchIt)      # Pak for PSM
 library(lmtest)       # Pak for LRT
 library(sandwich)     # ??? why we need this
@@ -63,7 +64,7 @@ plot(match_02, type = "jitter", interactive = FALSE)
 plot(summary(match_02), abs = FALSE) # looks good
 ```
 
-3. Matched Pairs 3: added Health vars (physical, mental, mobility)
+3.  Matched Pairs 3: added Health vars (physical, mental, mobility)
 
 ```{r}
 match_03 <- matchit(SER_ADM_COV~AGE_NMBR_COVID + SEX_CLSA +
@@ -88,13 +89,170 @@ summary(match_03)
 plot(match_03, type = "jitter", interactive = FALSE)
 plot(summary(match_03), abs = FALSE) # looks good
 ```
+4. Matched Pairs 4: using com50 data (only keep those live within 50-km to DCS), adding time, pcr+ tests, vaccination, hospitalization and provinces groups into the model:
+```{r}
+match_04 <- matchit(SER_ADM_COV~AGE_NMBR_COVID + SEX_CLSA +
+                      as.factor(URBAN_RURAL_COVID) +
+                      SER_EDU_COV + SER_ETHN_WH_COV + SER_FAMPH_COV +
+                      min_health + maj_health_bin +
+                      GAD_NBRMIS_COVX + DEP_CESD10_COVX +
+                      FUL_SIT1H_COVX + dist_min +
+                      SER_RSLT_SUM_bin15 + time_vac15 +
+                      PROV_5 + outbreak,
+    data=CLSA_com50[is.na(CLSA_com50$URBAN_RURAL_COVID)==F &
+                    is.na(CLSA_com50$SER_EDU_COV)==F &
+                    is.na(CLSA_com50$SER_FAMPH_COV)==F &
+                    is.na(CLSA_com50$SER_ETHN_WH_COV)==F &
+                    is.na(CLSA_com50$min_health)==F &
+                    is.na(CLSA_com50$maj_health)==F &
+                    is.na(CLSA_com50$DEP_CESD10_COVX)==F &
+                    is.na(CLSA_com50$FUL_SIT1H_COVX)==F &
+                    is.na(CLSA_com50$outbreak)==F,],
+    method = "nearest",distance ="glm",
+    ratio = 1, replace = FALSE)
+summary(match_04)
+
+#plotting the balance between DBS and VBS
+plot(match_04, type = "jitter", interactive = FALSE)
+plot(summary(match_04), abs = FALSE) # looks good
+```
+Matched Pairs 4.a: Add all we have, but subclass
+```{r}
+match_04.a <- matchit(SER_ADM_COV~AGE_NMBR_COVID + SEX_CLSA +
+            as.factor(URBAN_RURAL_COVID) +
+            as.factor(SER_EDU_COV) + SER_ETHN_WH_COV + SER_FAMPH_COV +
+            min_health + maj_health_bin +
+            GAD_NBRMIS_COVX + DEP_CESD10_COVX +
+            FUL_SIT1H_COVX + dist_min+
+            SER_RSLT_SUM_bin15 + time_vac15 +
+            PROV_5 + outbreak, 
+            data=CLSA_com50[is.na(CLSA_com50$URBAN_RURAL_COVID)==F &
+                    is.na(CLSA_com50$SER_EDU_COV)==F &
+                    is.na(CLSA_com50$SER_FAMPH_COV)==F &
+                    is.na(CLSA_com50$SER_ETHN_WH_COV)==F &
+                    is.na(CLSA_com50$min_health)==F &
+                    is.na(CLSA_com50$maj_health)==F &
+                    is.na(CLSA_com50$DEP_CESD10_COVX)==F &
+                    is.na(CLSA_com50$FUL_SIT1H_COVX)==F &
+                    is.na(CLSA_com50$outbreak)==F,],
+             method = "subclass",distance ="glm", 
+             subclass=8, estimand = 'ATE',
+             ratio = 1, replace = FALSE)
+summary(match_04.a)
+
+plot(summary(match_04.a), abs = FALSE) # looks better than "nearest"
+```
+
+Model 06, Best-fit model with minimal AIC
+```{r}
+lm06 <- glm(SER_ADM_COV~AGE_NMBR_COVID + SEX_CLSA +
+            as.factor(URBAN_RURAL_COVID) +
+            SER_ETHN_WH_COV  +
+            as.factor(SER_EDU_COV) +
+            DEP_CESD10_COVX +
+            dist_min +
+            time_vac15 +
+            PROV_5 + outbreak, 
+            data=CLSA_com50[is.na(CLSA_com50$URBAN_RURAL_COVID)==F &
+                    is.na(CLSA_com50$SER_EDU_COV)==F &
+                    is.na(CLSA_com50$SER_FAMPH_COV)==F &
+                    is.na(CLSA_com50$SER_ETHN_WH_COV)==F &
+                    is.na(CLSA_com50$min_health)==F &
+                    is.na(CLSA_com50$maj_health)==F &
+                    is.na(CLSA_com50$DEP_CESD10_COVX)==F &
+                    is.na(CLSA_com50$FUL_SIT1H_COVX)==F &
+                    is.na(CLSA_com50$outbreak)==F,],
+            family = binomial(link='logit'))
+summary(lm06)
+```
+Looking for Best-Fit Model using AIC algorism
+```{r}
+library(MASS)
+
+# Create Complete Cases 
+CLSA_com50s<-CLSA_com50 %>%
+  dplyr::select(SER_ADM_COV, AGE_NMBR_COVID , SEX_CLSA ,
+            URBAN_RURAL_COVID ,
+            SER_EDU_COV, SER_ETHN_WH_COV , SER_FAMPH_COV ,
+            min_health , maj_health_bin ,
+            GAD_NBRMIS_COVX , DEP_CESD10_COVX ,
+            FUL_SIT1H_COVX , dist_min,
+            SER_RSLT_SUM_bin15 , time_vac15 ,
+            PROV_5 , outbreak)
+CLSA_com50s<-na.omit(CLSA_com50s)
+CLSA_com50s$URBAN_RURAL_COVID<-as.factor(CLSA_com50s$URBAN_RURAL_COVID)
+CLSA_com50s$SER_EDU_COV<-as.factor(CLSA_com50s$SER_EDU_COV)
+  
+
+lmAIC <- glm(SER_ADM_COV~., data=CLSA_com50s, family = binomial(link='logit'))
+stepAIC(lmAIC, direction = 'backward')
+
+# Same as model 06
+```
 
 
+Matched Paires using Model 06
+```{r}
+match_06 <- matchit(SER_ADM_COV~AGE_NMBR_COVID + SEX_CLSA +
+                    as.factor(URBAN_RURAL_COVID) +
+                    SER_ETHN_WH_COV  +
+                    as.factor(SER_EDU_COV) +
+                    DEP_CESD10_COVX +
+                    dist_min + time_vac15 +
+                    PROV_5 + outbreak, 
+    data=CLSA_com50[is.na(CLSA_com50$URBAN_RURAL_COVID)==F &
+                    is.na(CLSA_com50$SER_EDU_COV)==F &
+                    is.na(CLSA_com50$SER_ETHN_WH_COV)==F &
+                    is.na(CLSA_com50$DEP_CESD10_COVX)==F &
+                    is.na(CLSA_com50$outbreak)==F,],
+    method = "nearest",distance ="glm", subclass=8,
+#    method = "subclass",distance ="glm", subclass=8,
+    ratio = 1, replace = FALSE)
+summary(match_06)
+
+#plotting the balance between DBS and VBS
+plot(match_06, type = "jitter", interactive = FALSE)
+plot(match_06, type = "hist", interactive = FALSE)
+plot(summary(match_06), abs = FALSE) # looks good
+
+plot(match_06, type = "density", interactive = FALSE,
+     which.xs = ~AGE_NMBR_COVID + SEX_CLSA)
+```
+Any other way to improve the matching?
+- use different methods: we used subclass instead of nearest. This matching methods matched within subclasses created based on propensity score. Usually they use 5 subclasses but in our case since it's difficult to reach banlance, we will use 8.
+
+```{r}
+match_06.a <- matchit(SER_ADM_COV~AGE_NMBR_COVID + SEX_CLSA +
+                    as.factor(URBAN_RURAL_COVID) +
+                    SER_ETHN_WH_COV  +
+                    as.factor(SER_EDU_COV) +
+                    DEP_CESD10_COVX +
+                    dist_min + time_vac15 +
+                    PROV_5 + outbreak, 
+    data=CLSA_com50[is.na(CLSA_com50$URBAN_RURAL_COVID)==F &
+                    is.na(CLSA_com50$SER_EDU_COV)==F &
+                    is.na(CLSA_com50$SER_ETHN_WH_COV)==F &
+                    is.na(CLSA_com50$DEP_CESD10_COVX)==F &
+                    is.na(CLSA_com50$outbreak)==F,],
+    method = "subclass",distance ="glm", subclass=8,
+    estimand = 'ATE',
+    ratio = 1, replace = FALSE)
+summary(match_06.a, subclass = T)
+
+# Making Plots
+plot(match_06.a, type = "hist", interactive = FALSE)
+plot(summary(match_06.a), abs = FALSE) # looks good
+```
+
+- try genetic?
+```{r}
+# Avoid running matchit() with method='genetic', it tooks forwever to run
+```
 
 
 Outcome Analysis
 
-1. Matched Pairs 1: age sex urban
+1.  Matched Pairs 1: age sex urban
 
 ```{r}
 # Anti-N
@@ -115,7 +273,7 @@ coeftest(lmm.01.S, vcov. = vcovCL, cluster = ~subclass)
 coefci(lmm.01.S, vcov. = vcovCL, cluster = ~subclass, level = 0.95)
 ```
 
-2. Matched Pairs 2: added edu race healthcare
+2.  Matched Pairs 2: added edu race healthcare
 
 ```{r}
 # Anti-N
@@ -135,11 +293,27 @@ coeftest(lmm.02.S, vcov. = vcovCL, cluster = ~subclass)
 coefci(lmm.02.S, vcov. = vcovCL, cluster = ~subclass, level = 0.95)
 ```
 
+3. Matched Pairs 6: The logistic regression model applied in PSM is the best-fit model
+```{r}
+# Use the result from subclass matching method since it has better balance 
+matched_dat06a <- match.data(match_06.a)
+
+lmm.06a.N<-glm(SER_NUCLEOCAPSID_COV~SER_ADM_COV,
+    data=matched_dat06a, family = binomial(link = "logit"))
+summary(lmm.06a.N)
+
+lmm.06a.N %>%
+  tbl_regression(exponentiate = T)
+```
+
+
+
 #### Making plots for outcomes (Anti-N & Anti-S)
 
 This time we use **matched** data
 
 plots for Anti-N (matched_01)
+
 ```{r}
 p01.N.neg<-ggplot(matched_dat01[matched_dat01$SER_NUCLEOCAPSID_COV==0,]
        , aes(x=as.factor(SER_ADM_COV), y=NUCLEOCAPSID_ANTIBODY)) + 
@@ -171,6 +345,7 @@ p01.N.pos5+ geom_boxplot(width=0.05, color='red')
 ```
 
 Plots for Anti-S (matched_01)
+
 ```{r}
 p01.S.neg<-ggplot(matched_dat01[matched_dat01$SER_SPIKE_COV==0,]
        , aes(x=as.factor(SER_ADM_COV), y=SPIKE_ANTIBODY)) + 
@@ -201,6 +376,7 @@ p01.S.pos20+ geom_boxplot(width=0.05, color='orange')
 Plots for match_02 data
 
 Anti-N
+
 ```{r}
 p02.N.neg<-ggplot(matched_dat02[matched_dat02$SER_NUCLEOCAPSID_COV==0,]
        , aes(x=as.factor(SER_ADM_COV), y=NUCLEOCAPSID_ANTIBODY)) + 
@@ -229,6 +405,7 @@ p02.N.pos5+ geom_boxplot(width=0.05, color='red')
 ```
 
 Plots for Anti-S (matched_02)
+
 ```{r}
 p02.S.neg<-ggplot(matched_dat02[matched_dat02$SER_SPIKE_COV==0,]
        , aes(x=as.factor(SER_ADM_COV), y=SPIKE_ANTIBODY)) + 
@@ -245,7 +422,7 @@ p02.S.pos<-ggplot(matched_dat02[matched_dat02$SER_SPIKE_COV==1,]
 p02.S.neg + geom_boxplot(width=0.05, color='orange')
 p02.S.pos + geom_boxplot(width=0.025, color='orange')
 
-# Plot not readable for positive results, trim the upper at 5
+# Plot not readable for positive results, trim the upper at 20
 p02.S.pos20<-ggplot(matched_dat02[matched_dat02$SER_SPIKE_COV==1 &
                                  matched_dat02$SPIKE_ANTIBODY<20,]
        , aes(x=as.factor(SER_ADM_COV), y=SPIKE_ANTIBODY)) + 
@@ -255,7 +432,32 @@ p02.S.pos20<-ggplot(matched_dat02[matched_dat02$SER_SPIKE_COV==1 &
 
 p02.S.pos20+ geom_boxplot(width=0.05, color='orange')
 ```
+
+Plots for Anti-S (matched_06a)
+```{r}
+p06a.S.pos<-ggplot(matched_dat06a[matched_dat06a$SER_SPIKE_COV==1,]
+       , aes(x=as.factor(SER_ADM_COV), y=SPIKE_ANTIBODY)) + 
+  labs(x="0=DBS, 1=VBS", y="Anti-S Ab Assay - Positive") +
+  labs(title = "Violin Plot for Quant Anti-S Results, using matched data") +
+  geom_violin(trim=F)
+
+p06a.S.pos + geom_boxplot(width=0.025, color='orange')
+
+# Plot not readable for positive results, trim the upper at 20
+p06a.S.pos20<-ggplot(matched_dat06a[matched_dat06a$SER_SPIKE_COV==1 &
+                                    matched_dat06a$SPIKE_ANTIBODY<20,]
+       , aes(x=as.factor(SER_ADM_COV), y=SPIKE_ANTIBODY)) + 
+  labs(x="0=DBS, 1=VBS", y="Anti-S Ab Assay - Positive") +
+  labs(title = "Violin Plot for Numeric Anti-S Results, using matched data, trimmed at 20") +
+  geom_violin(trim=F)
+
+p06a.S.pos20+ geom_boxplot(width=0.05, color='orange')
+```
+
+
+
 Calculate five numbers for the plot above
+
 ```{r}
 # DBS
 summary(matched_dat02$SPIKE_ANTIBODY[matched_dat02$SER_ADM_COV==0 &
@@ -264,4 +466,3 @@ summary(matched_dat02$SPIKE_ANTIBODY[matched_dat02$SER_ADM_COV==0 &
 summary(matched_dat02$SPIKE_ANTIBODY[matched_dat02$SER_ADM_COV==1 &
                                      matched_dat02$SER_SPIKE_COV==1])
 ```
-

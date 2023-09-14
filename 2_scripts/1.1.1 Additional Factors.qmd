@@ -14,6 +14,7 @@ Quarto enables you to weave together content and executable code into a finished
 ```{r}
 library(haven)         # Import csv and xlsx files
 library(dplyr)         # Dataset management
+library(gtsummary)     # Making ORs Tables
 ```
 
 ## Load dataset
@@ -341,6 +342,7 @@ table(CLSA_com50$SER_HOSP_COV, useNA = 'ifany') # only 9 have been hospitalized
 
 save(CLSA_com50, file = '~/dbs-vs-venous-antibodies/1_data/private/CLSA_com50.RData')
 ```
+
 #### Alton's question:Of those 9 how many were veneous?
 ```{r}
 table(CLSA_com50$SER_HOSP_COV, CLSA_com50$SER_ADM_COV,
@@ -352,6 +354,101 @@ proptable_chisq2(CLSA_com50$SER_HOSP_COV)
 #### 4. Geographic Regions: five groups:
 ```{r}
 #  BC, (AB+SK+MT), ON, QC, (All Atlantic provinces in the east)
+table(CLSA_com50$PROV_COVID, useNA = 'ifany')
+# Not all 10 provinces from CLSA dataset were included, only 7 of them
+
+CLSA_com50$PROV_5<-rep(0, length(CLSA_com50$PROV_COVID))
+CLSA_com50$PROV_5[CLSA_com50$PROV_COVID %in% c(10, 12)]<-1
+CLSA_com50$PROV_5[CLSA_com50$PROV_COVID %in% c(24)]<-2
+CLSA_com50$PROV_5[CLSA_com50$PROV_COVID %in% c(35)]<-3
+CLSA_com50$PROV_5[CLSA_com50$PROV_COVID %in% c(46,48)]<-4
+CLSA_com50$PROV_5[CLSA_com50$PROV_COVID %in% c(59)]<-5
+
+# Add format
+CLSA_com50$PROV_5 = factor(CLSA_com50$PROV_5,levels=c("1","2","3","4","5"))
+levels(CLSA_com50$PROV_5)=c("1 = NF & NS","2 = QC","3 = ON","4 = MT & AB","5 = BC")
+
+# Cross Tabulation to Verify
+table(CLSA_com50$PROV_5, CLSA_com50$PROV_COVID, useNA = 'ifany')
+```
+Then we compare the difference of dist between DBS vs VBS
+```{r}
+proptable_chisq2(CLSA_com50$PROV_5)
+
+## Make a simple logistic reg model to show the diff in each provincal group
+lm_prov<-glm(CLSA_com50$SER_ADM_COV~relevel(CLSA_com50$PROV_5, ref = '5 = BC'),
+             family = binomial(link = "logit"))
+summary(lm_prov)
+
+# Use Odds Ratio Table to present the results, BC as ref
+lm_prov %>%
+  tbl_regression(exponentiate = TRUE)
 ```
 
 #### 5. Time since last outbreak
+```{r}
+# Time of sample collection, need to get it from CLSA_Time 
+CLSA_com50<-merge(CLSA_com50, select(CLSA_Time, entity_id, start_datetime_COV), 
+      by = 'entity_id', all.x=T, all.y = F)
+
+summary(CLSA_com50$start_datetime_COV)
+# 2020/10/29 - 2021/08/18
+
+# Period when >50 7-day-ave daily new cases (WHO)
+# https://ourworldindata.org/covid-cases
+
+CLSA_com50$outbreak<-rep(NA, 7230)
+CLSA_com50$outbreak<-ifelse(CLSA_com50$start_datetime_COV - as.Date('2021-06-21', 
+                            format="%Y-%m-%d") >0, 0, 1)
+
+table(CLSA_com50$outbreak, useNA = 'ifany')
+# 0 = 15 days ago not in outbreak
+# 1 = 15 days ago in outbreak
+
+proptable_chisq2(CLSA_com50$outbreak)
+```
+```{r}
+## Make a simple logistic reg model to show the diff
+lm_outbreak<-glm(CLSA_com50$SER_ADM_COV~CLSA_com50$outbreak,
+             family = binomial(link = "logit"))
+summary(lm_outbreak)
+
+# Use Odds Ratio Table to present the results, not in the outbreak as ref
+lm_outbreak %>%
+  tbl_regression(exponentiate = TRUE)
+```
+
+#### Get daily new cases from WHO data
+```{r}
+#The daily cases data
+owid.covid.data <- read.csv("~/dbs-vs-venous-antibodies/1_data/owid-covid-data.csv")
+owid_covid<-owid.covid.data %>%
+  select(iso_code, location, date : reproduction_rate) %>%
+  .[.$iso_code=='CAN',]
+
+# correct format of dates
+owid_covid$date<-as.Date(owid_covid$date, format="%Y-%m-%d")
+owid_covid$date15<-owid_covid$date+15
+
+summary(owid_covid$date)
+summary(owid_covid$date15)
+
+# Add daily cases number to CLSA_com50 data
+CLSA_com50<-merge(CLSA_com50, select(owid_covid, date15, new_cases_per_million), 
+      by.x='start_datetime_COV', by.y = 'date15',
+      all.x = T, all.y = F)
+
+# use t-test to compare the diff
+var.test(new_cases_per_million~SER_ADM_COV, data = CLSA_com50)
+t.test(new_cases_per_million~SER_ADM_COV, data = CLSA_com50, var.equal=F)
+```
+Those in DBS group has more daily new cases 15 days before the sampling day.
+
+## Save the dataset
+```{r}
+save(CLSA_com50, file = '~/dbs-vs-venous-antibodies/1_data/private/CLSA_com50.RData')
+save(owid_covid, file = '~/dbs-vs-venous-antibodies/1_data/owid_covid.RData')
+```
+
+
+
