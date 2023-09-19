@@ -17,6 +17,7 @@ library(dplyr)
 library(MatchIt)      # Pak for PSM
 library(lmtest)       # Pak for LRT
 library(sandwich)     # ??? why we need this
+library(dgof)         # k.s test
 ```
 
 ## Load Dataset
@@ -206,7 +207,6 @@ match_06 <- matchit(SER_ADM_COV~AGE_NMBR_COVID + SEX_CLSA +
                     is.na(CLSA_com50$DEP_CESD10_COVX)==F &
                     is.na(CLSA_com50$outbreak)==F,],
     method = "nearest",distance ="glm", subclass=8,
-#    method = "subclass",distance ="glm", subclass=8,
     ratio = 1, replace = FALSE)
 summary(match_06)
 
@@ -223,9 +223,9 @@ Any other way to improve the matching?
 
 ```{r}
 match_06.a <- matchit(SER_ADM_COV~AGE_NMBR_COVID + SEX_CLSA +
-                    as.factor(URBAN_RURAL_COVID) +
+                    URBAN_RURAL_COVID +
                     SER_ETHN_WH_COV  +
-                    as.factor(SER_EDU_COV) +
+                    SER_EDU_COV +
                     DEP_CESD10_COVX +
                     dist_min + time_vac15 +
                     PROV_5 + outbreak, 
@@ -242,6 +242,42 @@ summary(match_06.a, subclass = T)
 # Making Plots
 plot(match_06.a, type = "hist", interactive = FALSE)
 plot(summary(match_06.a), abs = FALSE) # looks good
+
+# Concise version of plot:
+sum.match06a<-summary(match_06.a)
+tab01<-sum.match06a$sum.all
+tab02<-sum.match06a$sum.across
+
+namelist<-c("Overall Difference", "Age", "Sex: Female", "Sex: Male",
+            "UB/Rural: Rural", "UB/Rural: Urban Core", "UB/Rural: Urban Fringe",
+            "UB/Rural: Urban Out of CMA/CA", "UB/Rural: 2nd Urban Core",
+            "UB/Rural: DA Only", "Race: Non-WH", "Race: WH", "Edu: <High School", 
+            "Edu: High School", "Edu: Vocational Tr", "Edu: Non-uni cert", 
+            "Edu: Bachelor", "Edu: Graduate", "Dep Scale", "Travel Dist",
+            "Vax over 15 days: No", "Vax over 15 days: Yes", "Prov Group: NFL & NS",
+            "Prov Group: QC","Prov Group: ON","Prov Group: MT & AB","Prov Group: BC",
+            "Outbreak Peak: No", "Outbreak Peak: Yes")
+rownames(tab01)<-namelist
+rownames(tab02)<-namelist
+
+sum.match06a$sum.all<-tab01
+sum.match06a$sum.across<-tab02
+
+# Use those two lines for continuous var only
+# sum.match06a$sum.all<-tab01[c(1,2,19,20),]
+# sum.match06a$sum.across<-tab02[c(1,2,19,20),]
+
+# All vars
+png(file="~/dbs-vs-venous-antibodies/3_intermediate/Fig.2 Match_subclass.png", 
+    width=2650, height=2400, res=300)
+plot(sum.match06a, abs = F,
+     main = "Standardized Mean Difference (SMD) DBS vs VBS")
+dev.off()
+
+# Only Continuous Vars
+# plot(sum.match06a, abs = F,
+#     main = "Standardized Mean Difference (SMD) btw DBS & VBS, 
+#             Numeric Var only")
 ```
 
 - try genetic?
@@ -298,22 +334,26 @@ coefci(lmm.02.S, vcov. = vcovCL, cluster = ~subclass, level = 0.95)
 # Use the result from subclass matching method since it has better balance 
 matched_dat06a <- match.data(match_06.a)
 
+# OR of anti-N positive
 lmm.06a.N<-glm(SER_NUCLEOCAPSID_COV~SER_ADM_COV,
     data=matched_dat06a, family = binomial(link = "logit"))
 summary(lmm.06a.N)
 
 lmm.06a.N %>%
   tbl_regression(exponentiate = T)
+
+# OR of anti-S positive
+lmm.06a.S<-glm(SER_SPIKE_COV~SER_ADM_COV,
+    data=matched_dat06a, family = binomial(link = "logit"))
+lmm.06a.S %>%
+  tbl_regression(exponentiate = T)
 ```
 
-
-
-#### Making plots for outcomes (Anti-N & Anti-S)
+## ======== Part.II Making plots for outcomes (Anti-N & Anti-S) ============= ##
 
 This time we use **matched** data
 
-plots for Anti-N (matched_01)
-
+plots for Anti-N (matched_01):
 ```{r}
 p01.N.neg<-ggplot(matched_dat01[matched_dat01$SER_NUCLEOCAPSID_COV==0,]
        , aes(x=as.factor(SER_ADM_COV), y=NUCLEOCAPSID_ANTIBODY)) + 
@@ -453,8 +493,17 @@ p06a.S.pos20<-ggplot(matched_dat06a[matched_dat06a$SER_SPIKE_COV==1 &
 
 p06a.S.pos20+ geom_boxplot(width=0.05, color='orange')
 ```
+## Log-10 transform, then do the plot again
+```{r}
+## log-10 transformation
+p06a.S.pos_lg10<-ggplot(matched_dat06a[matched_dat06a$SER_SPIKE_COV==1,]
+       , aes(x=as.factor(SER_ADM_COV), y=log(SPIKE_ANTIBODY),base=10)) + 
+  labs(x="0=DBS, 1=VBS", y="Anti-S Ab Assay - Positive") +
+  labs(title = "Violin Plot for Log10-Transformed Quant Anti-S Results, using matched data") +
+  geom_violin(trim=F)
 
-
+p06a.S.pos_lg10 + geom_boxplot(width=0.025, color='orange')
+```
 
 Calculate five numbers for the plot above
 
@@ -466,3 +515,206 @@ summary(matched_dat02$SPIKE_ANTIBODY[matched_dat02$SER_ADM_COV==0 &
 summary(matched_dat02$SPIKE_ANTIBODY[matched_dat02$SER_ADM_COV==1 &
                                      matched_dat02$SER_SPIKE_COV==1])
 ```
+
+## eCDF function testing Anti-S
+```{r}
+ecdf_S_DBS<-matched_dat06a %>%
+  .[.$SER_SPIKE_COV==1 & .$SER_ADM_COV==0,] %>%
+  .$SPIKE_ANTIBODY
+
+# Plot seperately
+plot(ecdf(ecdf_S_DBS), main='eCDF of Quant Anti-S Assay Results 
+                      (log10 transformed) among DBS',
+     xlab = 'Quant Anti-S Assay Results-1og10 Transformed')
+  
+ecdf_S_VBS<-matched_dat06a %>%
+  .[.$SER_SPIKE_COV==1 & .$SER_ADM_COV==1,] %>%
+  .$SPIKE_ANTIBODY
+
+plot(ecdf(ecdf_S_VBS), main='eCDF of Quant Anti-S Assay Results 
+                      (log10 transformed) among VBS',
+     xlab = "Quant Anti-S Assay Results-log10 Transformed")
+```
+
+#### Comparing the diff using K.S Test
+```{r}
+# Kolmogorov-Smirnov Test (KS Test)
+# Needs package from {dgof}
+png(file="~/dbs-vs-venous-antibodies/3_intermediate/Fig.1a eCDF Anti-S.png", 
+    width=1600, height=1200, res=300)
+plot(ecdf(ecdf_S_DBS),
+     xlim = c(0.4,2500),
+     log='x',
+     xaxt = 'n',
+     col = "blue",
+     main='eCDF of Quant Anti-S Assay Results',
+     xlab = 'Quant Anti-S Assay Results')
+plot(ecdf(ecdf_S_VBS),
+     add = TRUE,
+     lwd=2,
+     lty = "dashed",
+     col = "red")
+axis(side=1, at=c(-0.4, 0, 1, 10, 100, 1000))
+legend("bottomright", legend = c("DBS", "VBS"),
+       lwd = 3, col = c("blue", "red"))
+dev.off()
+ 
+# performing the K-S
+# Test on x and x2
+ks.test(ecdf_S_DBS, ecdf_S_VBS, alternative = "two.sided")
+```
+
+The ecdf plot with Anti-N: in this part we probably need to do it seperately for Anti-N negative and Anti-N positive
+
+```{r}
+# Create the vectors for plotting:
+
+## N-negative
+N_DBS_neg<-matched_dat06a %>%
+  .[.$SER_NUCLEOCAPSID_COV==0 & .$SER_ADM_COV==0,] %>%
+  .$NUCLEOCAPSID_ANTIBODY
+N_VBS_neg<-matched_dat06a %>%
+  .[.$SER_NUCLEOCAPSID_COV==0 & .$SER_ADM_COV==1,] %>%
+  .$NUCLEOCAPSID_ANTIBODY
+
+## N-positive
+N_DBS_pos<-matched_dat06a %>%
+  .[.$SER_NUCLEOCAPSID_COV==1 & .$SER_ADM_COV==0,] %>%
+  .$NUCLEOCAPSID_ANTIBODY
+N_VBS_pos<-matched_dat06a %>%
+  .[.$SER_NUCLEOCAPSID_COV==1 & .$SER_ADM_COV==1,] %>%
+  .$NUCLEOCAPSID_ANTIBODY
+```
+
+```{r}
+# Create the ecdf plot:
+
+## Anti-N neg
+png(file="~/dbs-vs-venous-antibodies/3_intermediate/Fig.1b eCDF Anti-N_neg.png", 
+    width=1800, height=1200, res=300)
+plot(ecdf(N_DBS_neg),
+     xlim = range(N_DBS_neg, N_VBS_neg),
+     col = "green",
+     main='eCDF of Quant Anti-N Assay Results - Negative',
+     xlab = 'Quant Anti-N Assay Results')
+plot(ecdf(N_VBS_neg),
+     add = TRUE,
+     lwd=2,
+     lty = "dashed",
+     col = "orange")
+legend("bottomright", legend = c("DBS", "VBS"),
+       lwd = 3, col = c("green", "orange"))
+dev.off()
+
+## Anti-N pos: using log10 scale
+
+png(file="~/dbs-vs-venous-antibodies/3_intermediate/Fig.1b eCDF Anti-N_pos.png", 
+    width=1800, height=1200, res=300)
+plot(ecdf(N_DBS_pos),
+     xlim = range(0.1, 100),
+     log='x',
+     xaxt = 'n',
+     col = "green",
+     main='eCDF of Quant Anti-N Assay Results - Positive',
+     xlab = 'Quant Anti-N Assay Results')
+plot(ecdf(N_VBS_pos),
+     add = TRUE,
+     lwd=2,
+     lty = "dashed",
+     col = "orange")
+axis(side=1, at=c(0.1, 1, 10, 100))
+legend("bottomright", legend = c("DBS", "VBS"),
+       lwd = 3, col = c("green", "orange"))
+dev.off()
+
+
+# Test the diff
+ks.test(N_DBS_neg, N_VBS_neg, alternative = "two.sided")
+ks.test(N_DBS_pos, N_VBS_pos, alternative = "two.sided")
+```
+## ========================= Part. III OR Plot ===============================##
+
+#### Model.06
+```{r}
+CLSA_com50$dist_min_km<-CLSA_com50$dist_min/1000
+# The regression model: Best-fit Model
+lm06p <- glm(SER_ADM_COV~AGE_NMBR_COVID + SEX_CLSA +
+            URBAN_RURAL_COVID +
+            relevel(SER_ETHN_WH_COV, ref='1=WH')  +
+            SER_EDU_COV +
+            DEP_CESD10_COVX +
+            dist_min_km +
+            time_vac15 +
+            relevel(PROV_5, ref='5 = BC') + outbreak, 
+            data=CLSA_com50,
+            family = binomial(link='logit'))
+summary(lm06p)
+
+tbl_regression(lm06p, exponentiate = T)
+```
+
+#### Build Simple OR for each variable
+```{r}
+# Build a function for simple regression and OR
+simple_reg_OR<-function(v){
+ lm_temp<-glm(SER_ADM_COV~v, data=CLSA_com50,
+             family = binomial(link='logit'))
+ print(summary(lm_temp))
+ tbl_regression(lm_temp, exponentiate = T)
+}
+
+# test using age
+simple_reg_OR(CLSA_com50$AGE_NMBR_COVID) # Looks good
+```
+```{r}
+# Add other variables
+simple_reg_OR(CLSA_com50$SEX_CLSA)
+
+simple_reg_OR(CLSA_com50$URBAN_RURAL_COVID)
+
+simple_reg_OR(relevel(CLSA_com50$SER_ETHN_WH_COV, ref='1=WH'))
+
+simple_reg_OR(CLSA_com50$SER_EDU_COV)
+
+simple_reg_OR(CLSA_com50$DEP_CESD10_COVX)
+
+simple_reg_OR(CLSA_com50$dist_min_km)
+
+simple_reg_OR(CLSA_com50$time_vac15)
+
+simple_reg_OR(relevel(CLSA_com50$PROV_5, ref='5 = BC'))
+
+simple_reg_OR(CLSA_com50$outbreak)
+```
+
+## Import the OR table
+```{r}
+library(readxl)
+OR_import <- read_excel("~/dbs-vs-venous-antibodies/3_intermediate/OR_import.xlsx")
+OR_import$Adj<-as.factor(OR_import$Adj)
+levels(OR_import$Adj)=c("Unadjusted", "Adjusted")
+
+OR_import$Adj[OR_import$Adj=="1"]<-'Adjusted'
+OR_import$Adj[OR_import$Adj=="0"]<-'Unadjusted'
+
+ggplot(OR_import, aes(x = OR, y = group)) + 
+    geom_vline(aes(xintercept = 1), size = .75, linetype = "dashed",color='red')+
+    geom_errorbarh(aes(xmax = higher, xmin = lower, color=Adj),
+                       position = position_dodge(width = 1.0),
+                       linewidth = .5, height = .5) +
+    geom_point(size = 2.5, aes(colour=Adj),
+               position = position_dodge(width = 1.0))
+# Plot is good, but needs to add shadows
+```
+
+
+
+
+
+
+
+
+
+
+
+

@@ -15,6 +15,7 @@ Quarto enables you to weave together content and executable code into a finished
 library(haven)         # Import csv and xlsx files
 library(dplyr)         # Dataset management
 library(gtsummary)     # Making ORs Tables
+library(Hmisc)         # Adding labels to variables
 ```
 
 ## Load dataset
@@ -26,7 +27,7 @@ CLSA_Covid<-read.csv("~/dbs-vs-venous-antibodies/1_data/private/2209005_McGill_A
 CLSA_Antibody <- read.csv("~/dbs-vs-venous-antibodies/1_data/private/2209005_McGill_ARussell_Covid/2209005_McGill_ARussell_Covid_Antibody_Combined_NoIndigenousIdentifiers_v1.csv")
 
 # CLSA_com50: subset, comprehesive cohort, with traveking dist < 50km
-load(CLSA_com50, file = '~/dbs-vs-venous-antibodies/1_data/private/CLSA_com50.RData')
+load(file = '~/dbs-vs-venous-antibodies/1_data/private/CLSA_com50.RData')
 ```
 
 ## Make a function for prop tab making:
@@ -367,6 +368,7 @@ CLSA_com50$PROV_5[CLSA_com50$PROV_COVID %in% c(59)]<-5
 # Add format
 CLSA_com50$PROV_5 = factor(CLSA_com50$PROV_5,levels=c("1","2","3","4","5"))
 levels(CLSA_com50$PROV_5)=c("1 = NF & NS","2 = QC","3 = ON","4 = MT & AB","5 = BC")
+label(CLSA_com50$PROV_5)="Prov Group"
 
 # Cross Tabulation to Verify
 table(CLSA_com50$PROV_5, CLSA_com50$PROV_COVID, useNA = 'ifany')
@@ -442,6 +444,56 @@ CLSA_com50<-merge(CLSA_com50, select(owid_covid, date15, new_cases_per_million),
 var.test(new_cases_per_million~SER_ADM_COV, data = CLSA_com50)
 t.test(new_cases_per_million~SER_ADM_COV, data = CLSA_com50, var.equal=F)
 ```
+## To make the ggplotting much easier, adding formats and labels
+
+```{r}
+# Add Format
+
+# urban/rural
+CLSA_com50$URBAN_RURAL_COVID = as.factor(CLSA_com50$URBAN_RURAL_COVID)
+levels(CLSA_com50$URBAN_RURAL_COVID)=c("0 = Rural","1 = Urban Core",
+                                       "2 = Urban Fringe",
+                                       "4 = Urban out CMA/CAs",
+                                       "6 = 2nd urban core",
+                                       "9 = DA only")
+
+# Race/eth
+CLSA_com50$SER_ETHN_WH_COV[CLSA_com50$SER_ETHN_WH_COV==-88888]<-NA
+CLSA_com50$SER_ETHN_WH_COV = as.factor(CLSA_com50$SER_ETHN_WH_COV)
+levels(CLSA_com50$SER_ETHN_WH_COV)=c("0 = Non-WH", "1=WH")
+
+# Education
+table(CLSA_com50$SER_EDU_COV, useNA = 'ifany')
+CLSA_com50$SER_EDU_COV = as.factor(CLSA_com50$SER_EDU_COV)
+levels(CLSA_com50$SER_EDU_COV)=c("1 = <High School", "2 = High School",
+                                     "3 = Vocational Tr", "4 = Non-uni cert",
+                                     "5 = Bachelor", "6 = Graduate")
+
+# Vaccination Status
+table(CLSA_com50$time_vac15, useNA = 'ifany')
+CLSA_com50$time_vac15 <- as.factor(CLSA_com50$time_vac15)
+levels(CLSA_com50$time_vac15)=c("0 = No", "1 = Yes")
+
+# Outbreak
+table(CLSA_com50$outbreak, useNA = 'ifany')
+CLSA_com50$outbreak <- as.factor(CLSA_com50$outbreak)
+levels(CLSA_com50$outbreak)=c("0 = No", "1 = Yes")
+```
+
+```{r}
+# Labels
+label(CLSA_com50$AGE_NMBR_COVID)="Age"
+label(CLSA_com50$SEX_CLSA)="Sex"
+label(CLSA_com50$URBAN_RURAL_COVID)="Urban/Rural"
+label(CLSA_com50$SER_EDU_COV)="Education"
+label(CLSA_com50$SER_ETHN_WH_COV)="Race Binary"
+label(CLSA_com50$DEP_CESD10_COVX)="Dep Scale"
+label(CLSA_com50$dist_min)='Travel Dist'
+label(CLSA_com50$time_vac15)='Vax over 15 Days'
+label(CLSA_com50$outbreak)="Outbreak Peaks"
+label(CLSA_com50$PROV_5)="Prov Group"
+```
+
 Those in DBS group has more daily new cases 15 days before the sampling day.
 
 ## Save the dataset
