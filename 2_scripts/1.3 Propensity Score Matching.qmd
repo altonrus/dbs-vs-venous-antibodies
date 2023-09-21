@@ -13,7 +13,7 @@ Quarto enables you to weave together content and executable code into a finished
 ## Load Packages
 
 ```{r}
-library(dplyr)
+library(dplyr)        # Pak for data management
 library(MatchIt)      # Pak for PSM
 library(lmtest)       # Pak for LRT
 library(sandwich)     # ??? why we need this
@@ -23,7 +23,11 @@ library(dgof)         # k.s test
 ## Load Dataset
 
 ```{r}
+# CLSA comprehensive cohort: N=7678 
 load(file='~/dbs-vs-venous-antibodies/1_data/private/CLSA_mncom.RData')
+
+# CLSA comprehensive cohort: N=7230
+load(file='~/dbs-vs-venous-antibodies/1_data/private/CLSA_com50.RData')
 ```
 
 # ===================== Part I. Propensity Score Matching ==================
@@ -90,6 +94,7 @@ summary(match_03)
 plot(match_03, type = "jitter", interactive = FALSE)
 plot(summary(match_03), abs = FALSE) # looks good
 ```
+
 4. Matched Pairs 4: using com50 data (only keep those live within 50-km to DCS), adding time, pcr+ tests, vaccination, hospitalization and provinces groups into the model:
 ```{r}
 match_04 <- matchit(SER_ADM_COV~AGE_NMBR_COVID + SEX_CLSA +
@@ -117,6 +122,7 @@ summary(match_04)
 plot(match_04, type = "jitter", interactive = FALSE)
 plot(summary(match_04), abs = FALSE) # looks good
 ```
+
 Matched Pairs 4.a: Add all we have, but subclass
 ```{r}
 match_04.a <- matchit(SER_ADM_COV~AGE_NMBR_COVID + SEX_CLSA +
@@ -145,7 +151,9 @@ plot(summary(match_04.a), abs = FALSE) # looks better than "nearest"
 ```
 
 Model 06, Best-fit model with minimal AIC
+This model will be what we used for PSM modeling, its purpose is to calculate propensity score.
 ```{r}
+#model.06, multivariate regression model
 lm06 <- glm(SER_ADM_COV~AGE_NMBR_COVID + SEX_CLSA +
             as.factor(URBAN_RURAL_COVID) +
             SER_ETHN_WH_COV  +
@@ -188,16 +196,15 @@ CLSA_com50s$SER_EDU_COV<-as.factor(CLSA_com50s$SER_EDU_COV)
 lmAIC <- glm(SER_ADM_COV~., data=CLSA_com50s, family = binomial(link='logit'))
 stepAIC(lmAIC, direction = 'backward')
 
-# Same as model 06
+# Same as model 06, we good
 ```
-
 
 Matched Paires using Model 06
 ```{r}
 match_06 <- matchit(SER_ADM_COV~AGE_NMBR_COVID + SEX_CLSA +
-                    as.factor(URBAN_RURAL_COVID) +
+                    URBAN_RURAL_COVID +
                     SER_ETHN_WH_COV  +
-                    as.factor(SER_EDU_COV) +
+                    SER_EDU_COV +
                     DEP_CESD10_COVX +
                     dist_min + time_vac15 +
                     PROV_5 + outbreak, 
@@ -206,7 +213,7 @@ match_06 <- matchit(SER_ADM_COV~AGE_NMBR_COVID + SEX_CLSA +
                     is.na(CLSA_com50$SER_ETHN_WH_COV)==F &
                     is.na(CLSA_com50$DEP_CESD10_COVX)==F &
                     is.na(CLSA_com50$outbreak)==F,],
-    method = "nearest",distance ="glm", subclass=8,
+    method = "nearest",distance ="glm",
     ratio = 1, replace = FALSE)
 summary(match_06)
 
@@ -219,7 +226,7 @@ plot(match_06, type = "density", interactive = FALSE,
      which.xs = ~AGE_NMBR_COVID + SEX_CLSA)
 ```
 Any other way to improve the matching?
-- use different methods: we used subclass instead of nearest. This matching methods matched within subclasses created based on propensity score. Usually they use 5 subclasses but in our case since it's difficult to reach banlance, we will use 8.
+- use different methods: we used subclass instead of nearest. This matching methods matched within subclasses created based on propensity score. Usually they use 6 subclasses but in our case since it's difficult to reach balance, we will use 8.
 
 ```{r}
 match_06.a <- matchit(SER_ADM_COV~AGE_NMBR_COVID + SEX_CLSA +
@@ -637,8 +644,10 @@ ks.test(N_DBS_pos, N_VBS_pos, alternative = "two.sided")
 #### Model.06
 ```{r}
 CLSA_com50$dist_min_km<-CLSA_com50$dist_min/1000
+CLSA_com50$age10<-CLSA_com50$AGE_NMBR_COVID/10
+label(CLSA_com50$age10)="Age in 10-year Scale"
 # The regression model: Best-fit Model
-lm06p <- glm(SER_ADM_COV~AGE_NMBR_COVID + SEX_CLSA +
+lm06p <- glm(SER_ADM_COV ~ age10 + 
             URBAN_RURAL_COVID +
             relevel(SER_ETHN_WH_COV, ref='1=WH')  +
             SER_EDU_COV +
@@ -663,50 +672,71 @@ simple_reg_OR<-function(v){
  tbl_regression(lm_temp, exponentiate = T)
 }
 
-# test using age
-simple_reg_OR(CLSA_com50$AGE_NMBR_COVID) # Looks good
+# test using age (10-year scale)
+simple_reg_OR(CLSA_com50$age10) # Looks good
 ```
 ```{r}
 # Add other variables
-simple_reg_OR(CLSA_com50$SEX_CLSA)
+simple_reg_OR(CLSA_com50$SEX_CLSA)                            # Sex
 
-simple_reg_OR(CLSA_com50$URBAN_RURAL_COVID)
+simple_reg_OR(CLSA_com50$URBAN_RURAL_COVID)                   # Rural/Urban
 
-simple_reg_OR(relevel(CLSA_com50$SER_ETHN_WH_COV, ref='1=WH'))
+simple_reg_OR(relevel(CLSA_com50$SER_ETHN_WH_COV, ref='1=WH'))# WH/Non-WH
 
-simple_reg_OR(CLSA_com50$SER_EDU_COV)
+simple_reg_OR(CLSA_com50$SER_EDU_COV)                         # Education
 
-simple_reg_OR(CLSA_com50$DEP_CESD10_COVX)
+simple_reg_OR(CLSA_com50$DEP_CESD10_COVX)                     # Dep Scale
 
-simple_reg_OR(CLSA_com50$dist_min_km)
+simple_reg_OR(CLSA_com50$dist_min_km)                         # Travel Dist
 
-simple_reg_OR(CLSA_com50$time_vac15)
+simple_reg_OR(CLSA_com50$time_vac15)                          # Vax>15 Days?
 
-simple_reg_OR(relevel(CLSA_com50$PROV_5, ref='5 = BC'))
+simple_reg_OR(relevel(CLSA_com50$PROV_5, ref='5 = BC'))       # Prov, ref=BC
 
-simple_reg_OR(CLSA_com50$outbreak)
+simple_reg_OR(CLSA_com50$outbreak)                            # Outbreak Peak*
+
+# *Outbreak Peak* is defined by: >50 confirmed cases/1 million pop in Canada. Due to the delayed effect of infection to elevated Ab level, we left-shift it by 15 days. So it's "outbreak peak 15 days ago".
 ```
 
 ## Import the OR table
 ```{r}
+# This OR table is created outside of R manually, by filling the ORs from model.06p and those from simple logistic regression models above.
 library(readxl)
 OR_import <- read_excel("~/dbs-vs-venous-antibodies/3_intermediate/OR_import.xlsx")
 OR_import$Adj<-as.factor(OR_import$Adj)
-levels(OR_import$Adj)=c("Unadjusted", "Adjusted")
 
-OR_import$Adj[OR_import$Adj=="1"]<-'Adjusted'
-OR_import$Adj[OR_import$Adj=="0"]<-'Unadjusted'
 
-ggplot(OR_import, aes(x = OR, y = group)) + 
+g01<-ggplot(OR_import, aes(x = OR, y = group)) + 
     geom_vline(aes(xintercept = 1), size = .75, linetype = "dashed",color='red')+
     geom_errorbarh(aes(xmax = higher, xmin = lower, color=Adj),
                        position = position_dodge(width = 1.0),
                        linewidth = .5, height = .5) +
-    geom_point(size = 2.5, aes(colour=Adj),
-               position = position_dodge(width = 1.0))
-# Plot is good, but needs to add shadows
+    geom_point(size = 2, aes(colour=Adj),
+               position = position_dodge(width = 1.0))+
+    theme_bw()+
+    theme(plot.background = element_blank(),
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          panel.border = element_blank(),
+          legend.title = element_blank(),
+          axis.title.y = element_blank()
+          ) +
+  labs(x = "Odds ratio (>1 indicates propensity for in-person venous sample)")
+
+# Plot is good, but needs to add shadows for aesthetic purposes 
 ```
 
+## Applying GG forest
+```{r}
+# Load this package first
+library(ggforestplot) #From Github, not in pak tab but you can load it
+
+# Add shadows and save the plot
+png(file="~/dbs-vs-venous-antibodies/3_intermediate/Fig.3 OR Plot.png", 
+    width=2400, height=1440, res=300)
+g01+geom_stripes(odd = "#33333333", even = "#00000000")
+dev.off()
+```
 
 
 
