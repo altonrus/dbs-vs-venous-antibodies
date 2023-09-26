@@ -698,7 +698,7 @@ simple_reg_OR(CLSA_com50$outbreak)                            # Outbreak Peak*
 # *Outbreak Peak* is defined by: >50 confirmed cases/1 million pop in Canada. Due to the delayed effect of infection to elevated Ab level, we left-shift it by 15 days. So it's "outbreak peak 15 days ago".
 ```
 
-## Import the OR table
+#### Import the OR table
 ```{r}
 # This OR table is created outside of R manually, by filling the ORs from model.06p and those from simple logistic regression models above.
 library(readxl)
@@ -726,7 +726,7 @@ g01<-ggplot(OR_import, aes(x = OR, y = group)) +
 # Plot is good, but needs to add shadows for aesthetic purposes 
 ```
 
-## Applying GG forest
+#### Applying GG forest
 ```{r}
 # Load this package first
 library(ggforestplot) #From Github, not in pak tab but you can load it
@@ -734,10 +734,15 @@ library(ggforestplot) #From Github, not in pak tab but you can load it
 # Add shadows and save the plot
 png(file="~/dbs-vs-venous-antibodies/3_intermediate/Fig.3 OR Plot.png", 
     width=2400, height=1440, res=300)
-g01+geom_stripes(odd = "#33333333", even = "#00000000")
+g01+geom_stripes(odd = "#33333333", even = "#00000000")+
+   scale_color_brewer(palette="Set1") 
 dev.off()
 ```
 
+## Save com50 data
+```{r}
+save(CLSA_com50, file = '~/dbs-vs-venous-antibodies/1_data/private/CLSA_com50.RData')
+```
 
 
 

@@ -1,14 +1,13 @@
 ---
-title: ""
+title: "Change in hemoglobin as a novel marker for incident iron deficiency in blood donors"
 execute: 
   echo: false
 format:
   docx: 
     reference-doc: word-style-reference-manuscript.docx
   html: default
-bibliography: Assays and S-Co.bib
+bibliography: bib.bib
 csl: american-medical-association-brackets.csl
-#csl: apa.csl # Change the citation format to APA if preferred
 editor: visual
 crossref: 
   thm-title: "Table"
@@ -24,7 +23,6 @@ crossref:
 <!---
 
 NOTES:
--   This section was not rendered in .docx file
 -   To render both word and HTML, can type this into terminal
 
 quarto render 5_manuscript/manuscript.qmd
@@ -63,16 +61,16 @@ W. Alton Russell^1^, others
 {{< pagebreak >}}
 
 ```{r setup, include=FALSE}
-library(ggplot2) #plots
-library(data.table) #for using datatables instead of frames
-library(scales) #formatting plot legends and text
-library(readxl) #read.excel
-library(flextable) #generating tables
+library(ggplot2)        #beautiful plots
+library(data.table)     #for using datatables instead of frames
+library(scales)         #formatting plot legends and text
+library(readxl)         #read.excel
+library(flextable)      #generating tables
 # library(ftExtra)
 # library(officedown) #formatting for word
 # library(officer)
 # library(stringr)
-# theme_set(theme_bw())
+theme_set(theme_bw())
 
 ```
 
@@ -94,27 +92,15 @@ df_samp <- read_excel("../1_data/tables.xlsx", sheet = "sample")
 
 # Introduction
 
-Citation . See @fig-sample, @cor-sample, @thm-sample, and @lem-sample.
-
-Need to figure out how to cite those figures and tables later.
-
-**Citation Examples:**
-
-This study was conducted by Dr. Marty et al., in which they found x is significantly associated with y [@Langham2018a]. This is a citation not existing in the .bib file, so it won't present in the right way in the main text.
-
-Another study found that blablabla [@Charlton2021], we appreciate the work done by Dr. Charlton and her colleagues.
+Citation [@Langham2018a]. See @fig-sample, @cor-sample, @thm-sample, and @lem-sample.
 
 {{< pagebreak >}}
 
 # Methods
 
-## Dataset
+## Subsection
 
-The data we utilized is CLSA dataset.
-
-## Bivariate Analysis and Multivariate Regression Modeling
-
-## Propensity Score Matching
+A
 
 <br>
 
@@ -150,13 +136,6 @@ A
 
 # References
 
-```{=html}
-<!---
-The .bib file in the same folder as the .qmd file is for providing the biblography for us to cite when write. It is recommended to put all the citations in one folder (collection) and create .bib file from it. Another solution is creating seperate .bib file and merge them manually using Notepad+++. Anyway, the YAML chunk at the top of this file is only capable for loading ONLY ONE .bib file.
-
-The codes below "::: {#refs}" is for indicating the place where we should put biblographies
---->
-```
 ::: {#refs}
 :::
 
