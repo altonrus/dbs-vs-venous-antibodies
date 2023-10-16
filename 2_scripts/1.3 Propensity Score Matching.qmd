@@ -530,7 +530,10 @@ bal.tab(SER_ADM_COV~AGE_NMBR_COVID + SEX_CLSA +
 # OK, but few are not balanced
 
 # weighted data using 'weightit'
-bal.tab(w.01, stats = c("m", "v"), thresholds = c(m = .05)) # looks good
+bal.01<-bal.tab(w.01, stats = c("m", "ks.statistics"), 
+                thresholds = c(m = .05, ks=0.05), 
+                un=T, continuous = "std") # looks good
+bal.plot(w.01,  which = 'both') # dist of propensity score
 
 CLSA_com50.c6$w.weights<-w.01$weights
 
@@ -539,6 +542,9 @@ CLSA_com50.c6<-CLSA_com50.c6 %>%
   mutate(w_compare = w.weights - weight.ATE)
 
 summary(CLSA_com50.c6$w_compare)
+
+plot(bal.01)
+plot(summary(w.01))    
 ```
 
 #### The hist: dist of weights across two groups, DSB vs VBS
