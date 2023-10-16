@@ -16,22 +16,26 @@ Quarto enables you to weave together content and executable code into a finished
 library(dplyr)        # Pak for data management
 library(MatchIt)      # Pak for PSM
 library(lmtest)       # Pak for LRT
-library(sandwich)     # ??? why we need this
+# library(sandwich)     # ??? why we need this
 library(dgof)         # k.s test
+library(spatstat)     # for weighted cdf function
 ```
 
 ## Load Dataset
 
 ```{r}
 # CLSA comprehensive cohort: N=7678 
-load(file='~/dbs-vs-venous-antibodies/1_data/private/CLSA_mncom.RData')
+load(file='../1_data/private/CLSA_mncom.RData')
 
 # CLSA comprehensive cohort: N=7230
-load(file='~/dbs-vs-venous-antibodies/1_data/private/CLSA_com50.RData')
+load(file='../1_data/private/CLSA_com50.RData')
 ```
 
 # ===================== Part I. Propensity Score Matching ==================
 
+## 1. Model Building
+
+#### 1.1 Match_01 small model
 ```{r}
 # Simple model for PSM, using age, sex, urbanicity, edu (numeric)
 match_01 <- matchit(SER_ADM_COV~AGE_NMBR_COVID + SEX_CLSA +
@@ -48,7 +52,7 @@ plot(match_01, type = "jitter", interactive = FALSE)
 plot(summary(match_01), abs = FALSE) # looks good
 ```
 
-Match_02: Adding more demographic variables
+#### 1.2 Match_02: Adding more demographic variables
 
 ```{r}
 # Adding all the available demo variables, 
@@ -69,7 +73,7 @@ plot(match_02, type = "jitter", interactive = FALSE)
 plot(summary(match_02), abs = FALSE) # looks good
 ```
 
-3.  Matched Pairs 3: added Health vars (physical, mental, mobility)
+#### 1.3 Matched Pairs 3: added Health vars (physical, mental, mobility)
 
 ```{r}
 match_03 <- matchit(SER_ADM_COV~AGE_NMBR_COVID + SEX_CLSA +
@@ -95,7 +99,10 @@ plot(match_03, type = "jitter", interactive = FALSE)
 plot(summary(match_03), abs = FALSE) # looks good
 ```
 
-4. Matched Pairs 4: using com50 data (only keep those live within 50-km to DCS), adding time, pcr+ tests, vaccination, hospitalization and provinces groups into the model:
+#### 1.4  Matched Pairs 4: all variables, full model
+
+We are using com50 data (only keep those live within 50-km to DCS), adding time, pcr+ tests, vaccination, hospitalization and provinces groups into the model:
+
 ```{r}
 match_04 <- matchit(SER_ADM_COV~AGE_NMBR_COVID + SEX_CLSA +
                       as.factor(URBAN_RURAL_COVID) +
@@ -123,7 +130,8 @@ plot(match_04, type = "jitter", interactive = FALSE)
 plot(summary(match_04), abs = FALSE) # looks good
 ```
 
-Matched Pairs 4.a: Add all we have, but subclass
+1.4.a Matched Pairs 4.a: Add all we have, but subclass
+
 ```{r}
 match_04.a <- matchit(SER_ADM_COV~AGE_NMBR_COVID + SEX_CLSA +
             as.factor(URBAN_RURAL_COVID) +
@@ -150,8 +158,9 @@ summary(match_04.a)
 plot(summary(match_04.a), abs = FALSE) # looks better than "nearest"
 ```
 
-Model 06, Best-fit model with minimal AIC
+#### 1.5 Model 06, Best-fit model with minimal AIC 
 This model will be what we used for PSM modeling, its purpose is to calculate propensity score.
+
 ```{r}
 #model.06, multivariate regression model
 lm06 <- glm(SER_ADM_COV~AGE_NMBR_COVID + SEX_CLSA +
@@ -174,9 +183,11 @@ lm06 <- glm(SER_ADM_COV~AGE_NMBR_COVID + SEX_CLSA +
             family = binomial(link='logit'))
 summary(lm06)
 ```
-Looking for Best-Fit Model using AIC algorism
+
+Looking for Best-Fit Model using AIC algorithm
+
 ```{r}
-library(MASS)
+library(MASS)     # For automatic step-wise model selection
 
 # Create Complete Cases 
 CLSA_com50s<-CLSA_com50 %>%
@@ -200,6 +211,7 @@ stepAIC(lmAIC, direction = 'backward')
 ```
 
 Matched Paires using Model 06
+
 ```{r}
 match_06 <- matchit(SER_ADM_COV~AGE_NMBR_COVID + SEX_CLSA +
                     URBAN_RURAL_COVID +
@@ -220,14 +232,18 @@ summary(match_06)
 #plotting the balance between DBS and VBS
 plot(match_06, type = "jitter", interactive = FALSE)
 plot(match_06, type = "hist", interactive = FALSE)
-plot(summary(match_06), abs = FALSE) # looks good
+plot(summary(match_06), abs = FALSE) # looks not good
 
 plot(match_06, type = "density", interactive = FALSE,
      which.xs = ~AGE_NMBR_COVID + SEX_CLSA)
 ```
-Any other way to improve the matching?
-- use different methods: we used subclass instead of nearest. This matching methods matched within subclasses created based on propensity score. Usually they use 6 subclasses but in our case since it's difficult to reach balance, we will use 8.
 
+Any other way to improve the matching? - use different methods: we used subclass instead of nearest. This matching methods matched within subclasses created based on propensity score. Usually they use 6 subclasses but in our case since it's difficult to reach balance, we will use 8.
+
+As we proceed with diff matching methods we realized the sample size in the control group is the reason why we could not reach the balance between DBS & VBS. Since the sample size in DBS (control) is slightly more than that in cases (VBS), few unmatched cases were abandoned given the 1:1 case-control ratio. For options with fewer number of cases (certain % of cases will be abandoned randomly), see sections below.
+
+
+##### Addtional codes for custom SMD (Standard Mean Diff) figure
 ```{r}
 match_06.a <- matchit(SER_ADM_COV~AGE_NMBR_COVID + SEX_CLSA +
                     URBAN_RURAL_COVID +
@@ -247,7 +263,8 @@ match_06.a <- matchit(SER_ADM_COV~AGE_NMBR_COVID + SEX_CLSA +
 summary(match_06.a, subclass = T)
 
 # Making Plots
-plot(match_06.a, type = "hist", interactive = FALSE)
+plot(match_06.a, type = "hist", interactive = FALSE) # use hist instead of jitter plot, since every entry has been utilized for matching, but with diff weights. In this case hist is a better option to present diff btw matched pairs.
+
 plot(summary(match_06.a), abs = FALSE) # looks good
 
 # Concise version of plot:
@@ -287,15 +304,276 @@ dev.off()
 #             Numeric Var only")
 ```
 
-- try genetic?
+
+Other possible way of matching:
 ```{r}
 # Avoid running matchit() with method='genetic', it tooks forwever to run
+
+# use generalzied boosted model instead, as the replacement of logistic model
+library(gbm)
+CLSA_com50.c6$SEX_CLSA<-as.factor(CLSA_com50.c6$SEX_CLSA)
+gps <- gbm(SER_ADM_COV~AGE_NMBR_COVID + SEX_CLSA +
+                    URBAN_RURAL_COVID +
+                    SER_ETHN_WH_COV  +
+                    SER_EDU_COV +
+                    DEP_CESD10_COVX +
+                    dist_min + time_vac15 +
+                    PROV_5 + outbreak, 
+           data=CLSA_com50.c6, distribution = "bernoulli",n.trees = 2000, 
+           interaction.depth = 4, train.fraction = 0.8, shrinkage=0.0005)
+summary(gps)
+```
+Note: The "GBM" function is available in weightit() as an option. However we are not sure the paramaters in the function.
+
+#### 1.6 Matching, but with decreased case-control ratio
+
+Match 07, sample 90% cases
+```{r}
+set.seed(112006)
+CLSA_com50.m7<-CLSA_com50[CLSA_com50$SER_ADM_COV==1,] %>%
+                          sample_n(., size=round((3457*0.9), digits=0),
+                                   replace=FALSE) %>%
+                          mutate(., case_chosen=1)
+
+CLSA_com50.m7<-merge(CLSA_com50, 
+                     dplyr::select(CLSA_com50.m7, entity_id, case_chosen), 
+                     all.x = T, all.y = F, by='entity_id')
+CLSA_com50.m7$case_chosen[is.na(CLSA_com50.m7$case_chosen)==T]<-0
+CLSA_com50.m7$case_chosen[CLSA_com50.m7$SER_ADM_COV==0]<-1
+# Check the sampling
+table(CLSA_com50.m7$SER_ADM_COV, CLSA_com50.m7$case_chosen)
+
+match_07 <- matchit(SER_ADM_COV~AGE_NMBR_COVID + SEX_CLSA +
+                    URBAN_RURAL_COVID +
+                    SER_ETHN_WH_COV  +
+                    SER_EDU_COV +
+                    DEP_CESD10_COVX +
+                    dist_min + time_vac15 +
+                    PROV_5 + outbreak, 
+    data=CLSA_com50.m7[is.na(CLSA_com50.m7$URBAN_RURAL_COVID)==F &
+                      is.na(CLSA_com50.m7$SER_EDU_COV)==F &
+                      is.na(CLSA_com50.m7$SER_ETHN_WH_COV)==F &
+                      is.na(CLSA_com50.m7$DEP_CESD10_COVX)==F &
+                      is.na(CLSA_com50.m7$outbreak)==F &
+                      CLSA_com50.m7$case_chosen==1,],
+    method = "nearest",distance ="glm",
+    ratio = 1, replace = FALSE)
+
+#plotting the balance between DBS and VBS
+plot(match_07, type = "jitter", interactive = FALSE)
+plot(summary(match_07), abs = FALSE) # looks better
+```
+
+Match 08, sample 80% cases
+```{r}
+set.seed(112006)
+CLSA_com50.m8<-CLSA_com50[CLSA_com50$SER_ADM_COV==1,] %>%
+                          sample_n(., size=round((3457*0.8), digits=0),
+                                   replace=FALSE) %>%
+                          mutate(., case_chosen=1)
+
+CLSA_com50.m8<-merge(CLSA_com50, 
+                     dplyr::select(CLSA_com50.m8, entity_id, case_chosen), 
+                     all.x = T, all.y = F, by='entity_id')
+CLSA_com50.m8$case_chosen[is.na(CLSA_com50.m8$case_chosen)==T]<-0
+CLSA_com50.m8$case_chosen[CLSA_com50.m8$SER_ADM_COV==0]<-1
+# Check the sampling
+table(CLSA_com50.m8$SER_ADM_COV, CLSA_com50.m8$case_chosen)
+
+match_08 <- matchit(SER_ADM_COV~AGE_NMBR_COVID + SEX_CLSA +
+                    URBAN_RURAL_COVID +
+                    SER_ETHN_WH_COV  +
+                    SER_EDU_COV +
+                    DEP_CESD10_COVX +
+                    dist_min + time_vac15 +
+                    PROV_5 + outbreak, 
+    data=CLSA_com50.m8[is.na(CLSA_com50.m8$URBAN_RURAL_COVID)==F &
+                      is.na(CLSA_com50.m8$SER_EDU_COV)==F &
+                      is.na(CLSA_com50.m8$SER_ETHN_WH_COV)==F &
+                      is.na(CLSA_com50.m8$DEP_CESD10_COVX)==F &
+                      is.na(CLSA_com50.m8$outbreak)==F &
+                      CLSA_com50.m8$case_chosen==1,],
+    method = "nearest",distance ="glm",
+    ratio = 1, replace = FALSE)
+
+#plotting the balance between DBS and VBS
+plot(match_08, type = "jitter", interactive = FALSE)
+plot(summary(match_08), abs = FALSE) # looks better
+```
+
+Match 09, sample 60% cases - here the balance between DBS & VBS are reached
+```{r}
+set.seed(112006)
+CLSA_com50.m9<-CLSA_com50[CLSA_com50$SER_ADM_COV==1,] %>%
+                          sample_n(., size=round((3457*0.6), digits=0),
+                                   replace=FALSE) %>%
+                          mutate(., case_chosen=1)
+
+CLSA_com50.m9<-merge(CLSA_com50, 
+                     dplyr::select(CLSA_com50.m9, entity_id, case_chosen), 
+                     all.x = T, all.y = F, by='entity_id')
+CLSA_com50.m9$case_chosen[is.na(CLSA_com50.m9$case_chosen)==T]<-0
+CLSA_com50.m9$case_chosen[CLSA_com50.m9$SER_ADM_COV==0]<-1
+# Check the sampling
+table(CLSA_com50.m9$SER_ADM_COV, CLSA_com50.m9$case_chosen)
+
+match_09 <- matchit(SER_ADM_COV~AGE_NMBR_COVID + SEX_CLSA +
+                    URBAN_RURAL_COVID +
+                    SER_ETHN_WH_COV  +
+                    SER_EDU_COV +
+                    DEP_CESD10_COVX +
+                    dist_min + time_vac15 +
+                    PROV_5 + outbreak, 
+    data=CLSA_com50.m9[is.na(CLSA_com50.m9$URBAN_RURAL_COVID)==F &
+                      is.na(CLSA_com50.m9$SER_EDU_COV)==F &
+                      is.na(CLSA_com50.m9$SER_ETHN_WH_COV)==F &
+                      is.na(CLSA_com50.m9$DEP_CESD10_COVX)==F &
+                      is.na(CLSA_com50.m9$outbreak)==F &
+                      CLSA_com50.m9$case_chosen==1,],
+    method = "nearest",distance ="glm",
+    ratio = 1, replace = FALSE)
+
+#plotting the balance between DBS and VBS
+plot(match_09, type = "jitter", interactive = FALSE)
+plot(summary(match_09), abs = FALSE) # looks better
+```
+
+# ===================== Part II. Propensity Score Weighting ================== #
+
+## 1. Calculate weights using IPTW, manually calculation
+
+```{r}
+# clean dataset for model 6
+CLSA_com50.c6<-CLSA_com50 %>%
+  dplyr::select(SER_ADM_COV, AGE_NMBR_COVID , SEX_CLSA ,
+            URBAN_RURAL_COVID ,
+            SER_ETHN_WH_COV  ,
+            SER_EDU_COV ,
+            DEP_CESD10_COVX ,
+            dist_min ,
+            time_vac15,
+            PROV_5, outbreak,
+            SER_NUCLEOCAPSID_COV, SER_SPIKE_COV, SPIKE_ANTIBODY)
+CLSA_com50.c6<-na.omit(CLSA_com50.c6)
+
+# We will use model 6
+lm06 <- glm(SER_ADM_COV~AGE_NMBR_COVID + SEX_CLSA +
+            URBAN_RURAL_COVID +
+            SER_ETHN_WH_COV  +
+            SER_EDU_COV +
+            DEP_CESD10_COVX +
+            dist_min +
+            time_vac15 +
+            PROV_5 + outbreak, 
+            data=CLSA_com50.c6,
+            family = binomial(link='logit'))
+summary(lm06)
+
+# Use those two lines for generate propensity score, using glm or gbm
+CLSA_com50.c6$psvalue<-predict(lm06, type = 'response')
+#CLSA_com50.c6$psvalue<-predict(gps, type = 'response')
+
+CLSA_com50.c6$weight.ATE<-ifelse(CLSA_com50.c6$SER_ADM_COV==1,
+                                 1/CLSA_com50.c6$psvalue, 
+                                 1/(1-CLSA_com50.c6$psvalue))
+CLSA_com50.c6 %>%
+  group_by(SER_ADM_COV) %>%
+  group_walk(~hist(.$weight.ATE))
+
+# OR of anti-N positive
+psw.06.N<-glm(SER_NUCLEOCAPSID_COV~SER_ADM_COV,
+    data=CLSA_com50.c6, family = binomial(link = "logit"),
+    weights = weight.ATE)
+# ummary(psw.06.N)
+
+psw.06.N %>%
+  tbl_regression(exponentiate = T)
+
+# OR of anti-S positive
+psw.06.S<-glm(SER_SPIKE_COV~SER_ADM_COV,
+    data=CLSA_com50.c6, family = binomial(link = "logit"),
+    weights = weight.ATE)
+psw.06.S %>%
+  tbl_regression(exponentiate = T)
+```
+
+## Add weights calculated using {weightit} pak - same as manually calculated weights
+
+```{r}
+# Load pak
+library(WeightIt)
+library(cobalt)      # bal.tab() for imbalance tab
+
+w.01 <- weightit(SER_ADM_COV~AGE_NMBR_COVID + SEX_CLSA +
+                             URBAN_RURAL_COVID +
+                             SER_ETHN_WH_COV  +
+                             SER_EDU_COV +
+                             DEP_CESD10_COVX +
+                             dist_min +
+                             time_vac15 +
+                             PROV_5 + outbreak, 
+            data=CLSA_com50.c6, estimand = 'ATE', method = 'glm')
+summary(w.01)
+
+# Access imbalance
+
+# unweighted data
+bal.tab(SER_ADM_COV~AGE_NMBR_COVID + SEX_CLSA +
+                             URBAN_RURAL_COVID +
+                             SER_ETHN_WH_COV  +
+                             SER_EDU_COV +
+                             DEP_CESD10_COVX +
+                             dist_min +
+                             time_vac15 +
+                             PROV_5 + outbreak, 
+       data=CLSA_com50.c6 , estimand = "ATE", thresholds = c(m = .05))
+# OK, but few are not balanced
+
+# weighted data using 'weightit'
+bal.tab(w.01, stats = c("m", "v"), thresholds = c(m = .05)) # looks good
+
+CLSA_com50.c6$w.weights<-w.01$weights
+
+# manually weights vs weightit weights:
+CLSA_com50.c6<-CLSA_com50.c6 %>%
+  mutate(w_compare = w.weights - weight.ATE)
+
+summary(CLSA_com50.c6$w_compare)
+```
+
+#### The hist: dist of weights across two groups, DSB vs VBS
+```{r}
+# create transparent color:
+c1 <- rgb(173,216,230, max = 255, alpha = 80, names = "lt.blue")
+c2 <- rgb(255,192,203, max = 255, alpha = 80, names = "lt.pink")
+
+# set breaks with pretty()
+A<-CLSA_com50.c6$w.weights[CLSA_com50.c6$SER_ADM_COV==0]
+B<-CLSA_com50.c6$w.weights[CLSA_com50.c6$SER_ADM_COV==1]
+
+b <- min(c(A,B))-0.001     # Set the minimum for the breakpoints
+e <- max(c(A,B))           # Set the maximum for the breakpoints
+ax <- pretty(b:e, n = 30)  # Make a neat vector for the breakpoints
+
+hgA <- hist(A, breaks = ax, plot = FALSE) # Save first histogram data
+hgB <- hist(B, breaks = ax, plot = FALSE) # Save 2nd histogram data
+
+plot(hgA, col = c1, ylim = c(0,650),
+     main = 'Histogram of Weights by Group',
+     xlab = 'IPTW Weights')             
+plot(hgB, col = c2, add = TRUE) 
+legend("topright", legend = c("DBS", "VBS"),
+       lwd = 3, col = c(c1, c2))
+
+# Plot the distribution of weights separately, by applying plot() to w.01
+plot(summary(w.01), 
+     breaks=ax)
 ```
 
 
-Outcome Analysis
+# ===================== Part III. Outcome Analysis ==================== #
 
-1.  Matched Pairs 1: age sex urban
+## 1.  Matched Pairs 1: age sex urban
 
 ```{r}
 # Anti-N
@@ -316,7 +594,7 @@ coeftest(lmm.01.S, vcov. = vcovCL, cluster = ~subclass)
 coefci(lmm.01.S, vcov. = vcovCL, cluster = ~subclass, level = 0.95)
 ```
 
-2.  Matched Pairs 2: added edu race healthcare
+## 2.  Matched Pairs 2: added edu race healthcare
 
 ```{r}
 # Anti-N
@@ -336,14 +614,16 @@ coeftest(lmm.02.S, vcov. = vcovCL, cluster = ~subclass)
 coefci(lmm.02.S, vcov. = vcovCL, cluster = ~subclass, level = 0.95)
 ```
 
-3. Matched Pairs 6: The logistic regression model applied in PSM is the best-fit model
+## 3a. Matched Pairs 6a: The logistic regression model applied in PSM is the best-fit model, subclass matching
+
 ```{r}
 # Use the result from subclass matching method since it has better balance 
 matched_dat06a <- match.data(match_06.a)
 
 # OR of anti-N positive
 lmm.06a.N<-glm(SER_NUCLEOCAPSID_COV~SER_ADM_COV,
-    data=matched_dat06a, family = binomial(link = "logit"))
+    data=matched_dat06a, family = binomial(link = "logit"),
+    weights = weights)
 summary(lmm.06a.N)
 
 lmm.06a.N %>%
@@ -351,16 +631,99 @@ lmm.06a.N %>%
 
 # OR of anti-S positive
 lmm.06a.S<-glm(SER_SPIKE_COV~SER_ADM_COV,
-    data=matched_dat06a, family = binomial(link = "logit"))
+    data=matched_dat06a, family = binomial(link = "logit"),
+    weights = weights)
 lmm.06a.S %>%
   tbl_regression(exponentiate = T)
 ```
 
-## ======== Part.II Making plots for outcomes (Anti-N & Anti-S) ============= ##
+## 3.  Matched Pairs 6: The logistic regression model applied in PSM is the best-fit model, using nearest matching methods
+
+```{r}
+# Use the result from subclass matching method since it has better balance 
+matched_dat06 <- match.data(match_06)
+
+# OR of anti-N positive
+lmm.06.N<-glm(SER_NUCLEOCAPSID_COV~SER_ADM_COV,
+    data=matched_dat06, family = binomial(link = "logit"),
+    weights = weights)
+summary(lmm.06.N)
+
+lmm.06.N %>%
+  tbl_regression(exponentiate = T)
+
+# OR of anti-S positive
+lmm.06.S<-glm(SER_SPIKE_COV~SER_ADM_COV,
+    data=matched_dat06, family = binomial(link = "logit"),
+    weights = weights)
+lmm.06.S %>%
+  tbl_regression(exponentiate = T)
+```
+
+#### Additional Analysis using match_09, excluding 40% cases
+```{r}
+# Used 60% cases, m9
+matched_dat09 <- match.data(match_09)
+
+# OR of anti-N positive
+lmm.09.N<-glm(SER_NUCLEOCAPSID_COV~SER_ADM_COV,
+    data=matched_dat09, family = binomial(link = "logit"),
+    weights = weights)
+summary(lmm.09.N)
+
+lmm.09.N %>%
+  tbl_regression(exponentiate = T)
+
+# OR of anti-S positive
+lmm.09.S<-glm(SER_SPIKE_COV~SER_ADM_COV,
+    data=matched_dat09, family = binomial(link = "logit"),
+    weights = weights)
+lmm.09.S %>%
+  tbl_regression(exponentiate = T)
+```
+
+## 4. Analysis using unmatched data
+```{r}
+# Unmatched Analysis
+
+# OR of anti-N positive
+lmm.00.N<-glm(SER_NUCLEOCAPSID_COV~SER_ADM_COV,
+    data=CLSA_com50, family = binomial(link = "logit"))
+lmm.00.N %>%
+  tbl_regression(exponentiate = T)
+
+# OR of anti-S positive
+lmm.00.S<-glm(SER_SPIKE_COV~SER_ADM_COV,
+    data=CLSA_com50, family = binomial(link = "logit"))
+lmm.00.S %>%
+  tbl_regression(exponentiate = T)
+```
+
+Comparison of Quantitative Anti-S assay results, using match_06.a data
+
+```{r}
+# Anti-S Quantitative, using linear reg model, log-10 transformed
+CLSA_com50$SPIKE_ANTIBODY_log<-log10(CLSA_com50$SPIKE_ANTIBODY)
+lmm.06a.SQ <- lm(SPIKE_ANTIBODY_log~SER_ADM_COV,
+                data=matched_dat06a[matched_dat06a$SER_SPIKE_COV==1,], weights = weights)
+summary(lmm.06a.SQ)
+
+# weighted t-test?
+
+# Test the coefficient using cluster robust standard error
+coeftest(lmm.06a.SQ, vcov. = vcovCL, cluster = ~subclass)
+
+# Calculate the confidence intervals based on cluster robust standard error
+coefci(lmm.06a.SQ, vcov. = vcovCL, cluster = ~subclass, level = 0.95)
+```
+
+Notes: VBS is 0.84 units higher (95% CI: 0.77-0.91) than DBS, in log10 scale of quantitative Anti-S results
+
+## ======== Part.IV Making Plots for outcomes (Anti-N & Anti-S) =============
 
 This time we use **matched** data
 
-plots for Anti-N (matched_01):
+## 1. plots for Anti-N (matched_01):
 ```{r}
 p01.N.neg<-ggplot(matched_dat01[matched_dat01$SER_NUCLEOCAPSID_COV==0,]
        , aes(x=as.factor(SER_ADM_COV), y=NUCLEOCAPSID_ANTIBODY)) + 
@@ -391,7 +754,7 @@ p01.N.pos5+ stat_summary(fun.data="mean_sdl", mult=1,
 p01.N.pos5+ geom_boxplot(width=0.05, color='red')
 ```
 
-Plots for Anti-S (matched_01)
+#### Plots for Anti-S (matched_01)
 
 ```{r}
 p01.S.neg<-ggplot(matched_dat01[matched_dat01$SER_SPIKE_COV==0,]
@@ -420,10 +783,9 @@ p01.S.pos20<-ggplot(matched_dat01[matched_dat01$SER_SPIKE_COV==1 &
 p01.S.pos20+ geom_boxplot(width=0.05, color='orange')
 ```
 
-Plots for match_02 data
+## 2. Plots for match_02 data
 
-Anti-N
-
+#### Anti-N
 ```{r}
 p02.N.neg<-ggplot(matched_dat02[matched_dat02$SER_NUCLEOCAPSID_COV==0,]
        , aes(x=as.factor(SER_ADM_COV), y=NUCLEOCAPSID_ANTIBODY)) + 
@@ -451,8 +813,7 @@ p02.N.pos5<-ggplot(matched_dat02[matched_dat02$SER_NUCLEOCAPSID_COV==1 &
 p02.N.pos5+ geom_boxplot(width=0.05, color='red')
 ```
 
-Plots for Anti-S (matched_02)
-
+#### Plots for Anti-S (matched_02)
 ```{r}
 p02.S.neg<-ggplot(matched_dat02[matched_dat02$SER_SPIKE_COV==0,]
        , aes(x=as.factor(SER_ADM_COV), y=SPIKE_ANTIBODY)) + 
@@ -480,7 +841,7 @@ p02.S.pos20<-ggplot(matched_dat02[matched_dat02$SER_SPIKE_COV==1 &
 p02.S.pos20+ geom_boxplot(width=0.05, color='orange')
 ```
 
-Plots for Anti-S (matched_06a)
+## 3. Plots for Anti-S (matched_06a)
 ```{r}
 p06a.S.pos<-ggplot(matched_dat06a[matched_dat06a$SER_SPIKE_COV==1,]
        , aes(x=as.factor(SER_ADM_COV), y=SPIKE_ANTIBODY)) + 
@@ -500,7 +861,8 @@ p06a.S.pos20<-ggplot(matched_dat06a[matched_dat06a$SER_SPIKE_COV==1 &
 
 p06a.S.pos20+ geom_boxplot(width=0.05, color='orange')
 ```
-## Log-10 transform, then do the plot again
+
+#### Log-10 transform, then do the plot again
 ```{r}
 ## log-10 transformation
 p06a.S.pos_lg10<-ggplot(matched_dat06a[matched_dat06a$SER_SPIKE_COV==1,]
@@ -513,7 +875,6 @@ p06a.S.pos_lg10 + geom_boxplot(width=0.025, color='orange')
 ```
 
 Calculate five numbers for the plot above
-
 ```{r}
 # DBS
 summary(matched_dat02$SPIKE_ANTIBODY[matched_dat02$SER_ADM_COV==0 &
@@ -523,9 +884,9 @@ summary(matched_dat02$SPIKE_ANTIBODY[matched_dat02$SER_ADM_COV==1 &
                                      matched_dat02$SER_SPIKE_COV==1])
 ```
 
-## eCDF function testing Anti-S
+#### eCDF function testing Anti-S
 ```{r}
-ecdf_S_DBS<-matched_dat06a %>%
+ecdf_S_DBS<-matched_dat06 %>%
   .[.$SER_SPIKE_COV==1 & .$SER_ADM_COV==0,] %>%
   .$SPIKE_ANTIBODY
 
@@ -534,7 +895,7 @@ plot(ecdf(ecdf_S_DBS), main='eCDF of Quant Anti-S Assay Results
                       (log10 transformed) among DBS',
      xlab = 'Quant Anti-S Assay Results-1og10 Transformed')
   
-ecdf_S_VBS<-matched_dat06a %>%
+ecdf_S_VBS<-matched_dat06 %>%
   .[.$SER_SPIKE_COV==1 & .$SER_ADM_COV==1,] %>%
   .$SPIKE_ANTIBODY
 
@@ -549,14 +910,14 @@ plot(ecdf(ecdf_S_VBS), main='eCDF of Quant Anti-S Assay Results
 # Needs package from {dgof}
 png(file="~/dbs-vs-venous-antibodies/3_intermediate/Fig.1a eCDF Anti-S.png", 
     width=1600, height=1200, res=300)
-plot(ecdf(ecdf_S_DBS),
+plot(stats::ecdf(ecdf_S_DBS),
      xlim = c(0.4,2500),
      log='x',
      xaxt = 'n',
      col = "blue",
      main='eCDF of Quant Anti-S Assay Results',
      xlab = 'Quant Anti-S Assay Results')
-plot(ecdf(ecdf_S_VBS),
+plot(stats::ecdf(ecdf_S_VBS),
      add = TRUE,
      lwd=2,
      lty = "dashed",
@@ -574,7 +935,7 @@ ks.test(ecdf_S_DBS, ecdf_S_VBS, alternative = "two.sided")
 The ecdf plot with Anti-N: in this part we probably need to do it seperately for Anti-N negative and Anti-N positive
 
 ```{r}
-# Create the vectors for plotting:
+# Create the vectors for plotting, from subclass-matching weighted data
 
 ## N-negative
 N_DBS_neg<-matched_dat06a %>%
@@ -639,9 +1000,131 @@ dev.off()
 ks.test(N_DBS_neg, N_VBS_neg, alternative = "two.sided")
 ks.test(N_DBS_pos, N_VBS_pos, alternative = "two.sided")
 ```
-## ========================= Part. III OR Plot ===============================##
+
+#### Weighted ecdf, using IPTW weights
+
+```{r}
+# We used the ewcdf() from {spatstat} package
+table(CLSA_com50.c6$SER_ADM_COV, CLSA_com50.c6$SER_SPIKE_COV)
+
+# DBS with Spike+, N=1816
+wecdf_S_DBS<-CLSA_com50.c6 %>%
+  .[.$SER_SPIKE_COV==1 & .$SER_ADM_COV==0,] %>%
+  .$SPIKE_ANTIBODY
+
+# VBS with Spike+, N=1572
+wecdf_S_VBS<-CLSA_com50.c6 %>%
+  .[.$SER_SPIKE_COV==1 & .$SER_ADM_COV==1,] %>%
+  .$SPIKE_ANTIBODY
+```
+
+#####  Make and print the plot
+```{r}
+png(file="~/dbs-vs-venous-antibodies/3_intermediate/Fig.1c Weighted eCDF Anti-S.png", 
+    width=1600, height=1200, res=300)
+plot(ewcdf(wecdf_S_DBS,
+           weights=CLSA_com50.c6$w.weights[CLSA_com50.c6$SER_ADM_COV==0 &
+                                          CLSA_com50.c6$SER_SPIKE_COV==1]),
+     xlim = c(0.4,2500),
+     log='x',
+     xaxt = 'n',
+     col = "blue",
+     main='Weighted eCDF of Quant Anti-S Assay Results',
+     xlab = 'Quant Anti-S Assay Results')
+plot(ewcdf(wecdf_S_VBS,
+          weights=CLSA_com50.c6$w.weights[CLSA_com50.c6$SER_ADM_COV==1 &
+                                          CLSA_com50.c6$SER_SPIKE_COV==1]),
+     add = TRUE,
+     lwd=2,
+     col = "red")
+axis(side=1, at=c(-0.4, 0, 1, 10, 100, 1000))
+legend("bottomright", legend = c("DBS", "VBS"),
+       lwd = 3, col = c("blue", "red"))
+dev.off()
+```
+
+##### Addtional Codes: Why the unweighted and weighted eCDF looks exactly the same?
+```{r}
+# The codes below use a very small subset -- first 10 obs from the DBS group. Now the difference is visible, proving that all eCDF functions we tested so far are working well, the difference between weighted and unweighted eCDF is too small to be visible.
+
+wecdf_S_DBS<-wecdf_S_DBS[1:10] # a 10-obs subset for DBS
+
+plot(ewcdf(wecdf_S_DBS),
+     xlim = c(0.4,2500),
+     log='x',
+     xaxt = 'n',
+     col = "blue",
+     main='Weighted eCDF of Quant Anti-S Assay Results',
+     xlab = 'Quant Anti-S Assay Results')
+plot(ewcdf(wecdf_S_DBS,
+          weights=CLSA_com50.c6$w.weights[CLSA_com50.c6$SER_ADM_COV==0 &
+                                          CLSA_com50.c6$SER_SPIKE_COV==1][1:10]),
+     add = TRUE,
+     lwd=2,
+     col = "green")
+axis(side=1, at=c(-0.4, 0, 1, 10, 100, 1000))
+legend("bottomright", legend = c("DBS: 1st 10 Obs, unweighted", "DBS: 1st 10 Obs, weighted"),
+       lwd = 3, col = c("blue", "green"))
+```
+
+weighted ecdf, using stat_ecdf in {ggplot2} package
+```{r}
+source("../2_scripts/stat_ecdf_weighted.R")
+
+# unweighted version
+ggplot(CLSA_com50.c6[CLSA_com50.c6$SER_SPIKE_COV==1,], 
+       aes(x=SPIKE_ANTIBODY, color=as.factor(SER_ADM_COV))) +
+       stat_ecdf(geom = "step") +
+       coord_trans(x="log10") +
+       ggtitle("eCDF plot unweighted")
+
+# weighted version
+ggplot(CLSA_com50.c6[CLSA_com50.c6$SER_SPIKE_COV==1,], 
+       aes(x=SPIKE_ANTIBODY, color=as.factor(SER_ADM_COV)),
+           weight = w.weights) +
+       stat_ecdf(geom = "step") +
+       coord_trans(x="log10")+
+       theme_bw() + 
+       ggtitle("eCDF plot weighted")
+
+```
+
+
+Another weighted ecdf, using weights from subclass matching
+```{r}
+S_DBS_pos<-matched_dat06a %>%
+  .[.$SER_SPIKE_COV==1 & .$SER_ADM_COV==0,] %>%
+  .$SPIKE_ANTIBODY
+
+S_VBS_pos<-matched_dat06a %>%
+  .[.$SER_SPIKE_COV==1 & .$SER_ADM_COV==1,] %>%
+  .$SPIKE_ANTIBODY
+
+plot(ewcdf(S_DBS_pos, 
+           weights=matched_dat06a$weights[matched_dat06a$SER_ADM_COV==0 &
+                                          matched_dat06a$SER_SPIKE_COV==1]),
+     xlim = c(0.4,2500),
+     log='x',
+     xaxt = 'n',
+     col = "blue",
+     main='Weighted eCDF of Quant Anti-S Assay Results',
+     xlab = "add Xlab here")
+plot(ewcdf(S_VBS_pos,
+           weights=matched_dat06a$weights[matched_dat06a$SER_ADM_COV==0 &
+                                          matched_dat06a$SER_SPIKE_COV==1]),
+     add = TRUE,
+     lwd=2,
+     lty = "dashed",
+     col = "red")
+axis(side=1, at=c(-0.4, 0, 1, 10, 100, 1000))
+legend("bottomright", legend = c("DBS", "VBS"),
+       lwd = 3, col = c("blue", "red"))
+```
+
+## ========================= Part. V OR Plot ===============================
 
 #### Model.06
+
 ```{r}
 CLSA_com50$dist_min_km<-CLSA_com50$dist_min/1000
 CLSA_com50$age10<-CLSA_com50$AGE_NMBR_COVID/10
@@ -663,6 +1146,7 @@ tbl_regression(lm06p, exponentiate = T)
 ```
 
 #### Build Simple OR for each variable
+
 ```{r}
 # Build a function for simple regression and OR
 simple_reg_OR<-function(v){
@@ -675,6 +1159,7 @@ simple_reg_OR<-function(v){
 # test using age (10-year scale)
 simple_reg_OR(CLSA_com50$age10) # Looks good
 ```
+
 ```{r}
 # Add other variables
 simple_reg_OR(CLSA_com50$SEX_CLSA)                            # Sex
@@ -699,6 +1184,7 @@ simple_reg_OR(CLSA_com50$outbreak)                            # Outbreak Peak*
 ```
 
 #### Import the OR table
+
 ```{r}
 # This OR table is created outside of R manually, by filling the ORs from model.06p and those from simple logistic regression models above.
 library(readxl)
@@ -727,6 +1213,7 @@ g01<-ggplot(OR_import, aes(x = OR, y = group)) +
 ```
 
 #### Applying GG forest
+
 ```{r}
 # Load this package first
 library(ggforestplot) #From Github, not in pak tab but you can load it
@@ -740,16 +1227,7 @@ dev.off()
 ```
 
 ## Save com50 data
+
 ```{r}
 save(CLSA_com50, file = '~/dbs-vs-venous-antibodies/1_data/private/CLSA_com50.RData')
 ```
-
-
-
-
-
-
-
-
-
-

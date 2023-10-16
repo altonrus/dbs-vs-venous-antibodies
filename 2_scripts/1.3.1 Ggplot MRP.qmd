@@ -11,7 +11,9 @@ Quarto enables you to weave together content and executable code into a finished
 ## Running Code
 
 ## Load Data
+
 ```{r}
+# An example dataset from Yuan, with structure modidied in Excel:
 regpro <- read.csv("~/dbs-vs-venous-antibodies/1_data/regpro_df_reformed.csv")
 colnames(regpro)<-c("order", "regpro",
                     "est_A", "est_A_se", 
@@ -23,10 +25,11 @@ regpro$higher = regpro$est_A + 1.96*regpro$est_A_se
 ```
 
 ## GG plot
+
 ```{r}
 g02<-ggplot(regpro, aes(x = est_A, y = regpro)) + 
     geom_errorbarh(aes(xmax = higher, xmin = lower, color=data),
-                       position = position_dodge(width = 1.0),
+                       position = position_dodge(width = 1.0), # avoid overlapping
                        linewidth = .5, height = .5) +
     geom_point(size = 2, aes(colour=data),
                position = position_dodge(width = 1.0))+
@@ -43,4 +46,3 @@ g02<-ggplot(regpro, aes(x = est_A, y = regpro)) +
 library(ggforestplot)
 g02 + geom_stripes(odd = "#33333333", even = "#00000000")
 ```
-
