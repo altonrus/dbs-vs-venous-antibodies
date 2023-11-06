@@ -1,5 +1,5 @@
 ---
-title: ""
+title: "Impact of venous and dried blood spot sample collection in a study of SARS-CoV-2 antibody levels in older Canadians"
 execute: 
   echo: false
 format:
@@ -111,15 +111,11 @@ WriteBib(m1, file = "../5_manuscript/biball.bib")
 
 # Introduction
 
-Citation . See @fig-sample, @cor-sample, @thm-sample, and @lem-sample.
+-   DBS convenient and increasingly used
 
-Need to figure out how to cite those figures and tables later.
+-   Studies suggest similar performance
 
-**Citation Examples:**
-
-This study was conducted by Dr. Marty et al., in which they found x is significantly associated with y [@Langham2018a]. This is a citation exists in the merged .bib file, see if it is presented correctly in the document.
-
-Another study found that blablabla [@Charlton2021], we appreciate the work done by Dr. Charlton and her colleagues.
+-   We used data from ... in which participants self-selected between DBS vs VBS. We analyzed factors associated with particiants' decision to provide a home DBS sample vs. in person venous sample, and analyzed differences in assay results after adjusting for potential confounders with propensity score weighting.
 
 ### Sampling Methods:
 
