@@ -550,8 +550,8 @@ plot(summary(w.01))
 #### The hist: dist of weights across two groups, DSB vs VBS
 ```{r}
 # create transparent color:
-c1 <- rgb(173,216,230, max = 255, alpha = 80, names = "lt.blue")
-c2 <- rgb(255,192,203, max = 255, alpha = 80, names = "lt.pink")
+c1 <- rgb(173,216,230, max = 255, alpha = 85, names = "lt.blue")
+c2 <- rgb(255,192,203, max = 255, alpha = 85, names = "lt.pink")
 
 # set breaks with pretty()
 A<-CLSA_com50.c6$w.weights[CLSA_com50.c6$SER_ADM_COV==0]

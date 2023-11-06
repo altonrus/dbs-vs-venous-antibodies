@@ -11,6 +11,7 @@ Quarto enables you to weave together content and executable code into a finished
 ## Running Code
 
 ## Load useful packages
+
 ```{r}
 library(haven)         # Import csv and xlsx files
 library(dplyr)         # Dataset management
@@ -19,6 +20,7 @@ library(Hmisc)         # Adding labels to variables
 ```
 
 ## Load dataset
+
 ```{r}
 # CLSA Covid data: this one might not be so useful for hosp and vacc info
 CLSA_Covid<-read.csv("~/dbs-vs-venous-antibodies/1_data/private/2209005_McGill_ARussell_Covid/2209005_McGill_ARussell_Covid_Combined_v1-1.csv")
@@ -31,6 +33,7 @@ load(file = '~/dbs-vs-venous-antibodies/1_data/private/CLSA_com50.RData')
 ```
 
 ## Make a function for prop tab making:
+
 ```{r}
 proptable_chisq2<-function(r){tab1<-table(r, CLSA_com50$SER_ADM_COV)
             tab1.prop<-round(prop.table(tab1, margin = 2), digits = 4)*100
@@ -51,7 +54,7 @@ proptable_chisq2<-function(r){tab1<-table(r, CLSA_com50$SER_ADM_COV)
 
 ## Additional Factors: vaccination, PCR+, Time since last outbreak, provinces?
 
-Theoratically if the PCR test results and vaccination can be well-adjusted, we won't need to adjust for other factors. For now let's clear them all up and see what we got in DBS vs VBS comparison: 
+Theoratically if the PCR test results and vaccination can be well-adjusted, we won't need to adjust for other factors. For now let's clear them all up and see what we got in DBS vs VBS comparison:
 
 ```{r}
 # A small subset including hosp, PCR & Vaccination time
@@ -61,8 +64,8 @@ CLSA_Time<-CLSA_Antibody %>%
          )
 ```
 
-
 #### 1. PCR and other available tests:
+
 ```{r}
 # Ever tested in the past month - SYM_TEST_COVID
 table(CLSA_Covid$SYM_TEST_COVID, useNA = 'ifany')       # N= 501 Yes
@@ -77,6 +80,7 @@ table(CLSA_Covid$SYM_TEST_COVID, CLSA_Covid$SYM_TESTPOS_COVX, useNA = 'ifany')
 ```
 
 Using CLSA_Antibody data for PCR test results
+
 ```{r}
 table(CLSA_Time$SER_TEST_COV, useNA = 'ifany')
 # Only 5637 of 19934 have been tested for PCR
@@ -177,6 +181,7 @@ table(CLSA_com50$pcr_time, useNA = "ifany")
 ```
 
 Numbers of PCR+ tests
+
 ```{r}
 if_else2<-function(x){
   if_else(x==1,1,0)
@@ -210,6 +215,7 @@ save(CLSA_com50, file = '~/dbs-vs-venous-antibodies/1_data/private/CLSA_com50.RD
 ```
 
 #### Showcase with {dplyr}
+
 ```{r}
 # Those with Days to Last PCR+ Test Available (N=67)
 CLSA_com50 %>%
@@ -232,8 +238,8 @@ CLSA_Antibody %>%
   .[.$entity_id == 10935126,]
 ```
 
-
 ##### Show the distribution DBS vs VBS
+
 ```{r}
 CLSA_com50<-merge(CLSA_com50, select(CLSA_Time, entity_id, SER_RSLT_SUM, SER_RSLT_SUM_bin),
                   by='entity_id', all.x = T, all.y = F)
@@ -247,8 +253,8 @@ proptable_chisq2(CLSA_com50$SER_RSLT_SUM_bin)
 proptable_chisq2(CLSA_com50$SER_RSLT_SUM)
 ```
 
-
 #### 2. Vaccination Info （CLSA_Antibody Data）
+
 ```{r}
 CLSA_Antibody %>%
   .[.$SER_TEST_COV>=1,] %>%
@@ -307,7 +313,9 @@ CLSA_Time$time_vac[as.numeric(CLSA_Time$time_vac)<0]<-NA
 CLSA_Time$time_vac15 <- rep(0,19334)
 CLSA_Time$time_vac15[CLSA_Time$time_vac>15 & CLSA_Time$time_vac<365]<-1
 ```
+
 merge time_vac15 to com50 cohort data:
+
 ```{r}
 CLSA_com50<-merge(CLSA_com50, select(CLSA_Time, entity_id, time_vac, time_vac15), by='entity_id',
       all.x = T, all.y = F)
@@ -318,9 +326,8 @@ proptable_chisq2(CLSA_com50$time_vac15)
 save(CLSA_com50, file = '~/dbs-vs-venous-antibodies/1_data/private/CLSA_com50.RData')
 ```
 
+Histogram: using comprehensive cohort (\<50 km)
 
-
-Histogram: using comprehensive cohort (<50 km)
 ```{r}
 hist(as.numeric(CLSA_com50$time_vac), breaks = 40,
      xlab = 'Time Since Last Vaccination (Days)',
@@ -328,8 +335,8 @@ hist(as.numeric(CLSA_com50$time_vac), breaks = 40,
              Comprehensive Cohort < 50km")
 ```
 
-
 #### 3. Hospitalization: have you ever been hospitalized due to Covid-19?
+
 ```{r}
 table(CLSA_Time$SER_HOSP_COV, useNA = 'ifany')
 
@@ -345,6 +352,7 @@ save(CLSA_com50, file = '~/dbs-vs-venous-antibodies/1_data/private/CLSA_com50.RD
 ```
 
 #### Alton's question:Of those 9 how many were veneous?
+
 ```{r}
 table(CLSA_com50$SER_HOSP_COV, CLSA_com50$SER_ADM_COV,
       useNA = 'ifany') 
@@ -352,7 +360,9 @@ proptable_chisq2(CLSA_com50$SER_HOSP_COV)
 
 # only 9 have been hospitalized
 ```
+
 #### 4. Geographic Regions: five groups:
+
 ```{r}
 #  BC, (AB+SK+MT), ON, QC, (All Atlantic provinces in the east)
 table(CLSA_com50$PROV_COVID, useNA = 'ifany')
@@ -373,7 +383,9 @@ label(CLSA_com50$PROV_5)="Prov Group"
 # Cross Tabulation to Verify
 table(CLSA_com50$PROV_5, CLSA_com50$PROV_COVID, useNA = 'ifany')
 ```
+
 Then we compare the difference of dist between DBS vs VBS
+
 ```{r}
 proptable_chisq2(CLSA_com50$PROV_5)
 
@@ -388,6 +400,7 @@ lm_prov %>%
 ```
 
 #### 5. Time since last outbreak
+
 ```{r}
 # Time of sample collection, need to get it from CLSA_Time 
 CLSA_com50<-merge(CLSA_com50, select(CLSA_Time, entity_id, start_datetime_COV), 
@@ -409,6 +422,7 @@ table(CLSA_com50$outbreak, useNA = 'ifany')
 
 proptable_chisq2(CLSA_com50$outbreak)
 ```
+
 ```{r}
 ## Make a simple logistic reg model to show the diff
 lm_outbreak<-glm(CLSA_com50$SER_ADM_COV~CLSA_com50$outbreak,
@@ -421,6 +435,7 @@ lm_outbreak %>%
 ```
 
 #### Get daily new cases from WHO data
+
 ```{r}
 #The daily cases data
 owid.covid.data <- read.csv("~/dbs-vs-venous-antibodies/1_data/owid-covid-data.csv")
@@ -444,6 +459,51 @@ CLSA_com50<-merge(CLSA_com50, select(owid_covid, date15, new_cases_per_million),
 var.test(new_cases_per_million~SER_ADM_COV, data = CLSA_com50)
 t.test(new_cases_per_million~SER_ADM_COV, data = CLSA_com50, var.equal=F)
 ```
+
+#### Get province-specific data, new cases per million
+```{r}
+# The prov specific data is not available in WHO, need to use data driectly from canada.ca instead: https://health-infobase.canada.ca/covid-19/#a4
+
+# load csv
+library(readr)
+Canada_Covid <- read_csv("1_data/Canada Dep Health_covid19.csv", 
+    col_types = cols(date = col_date(format = "%Y-%m-%d")))
+
+# Days + 15, time for Ab level to rise up after infection/vax
+Canada_Covid$date<-Canada_Covid$date+15
+
+Canada_Covid1<-Canada_Covid
+Canada_Covid1$date<-Canada_Covid$date-1
+
+Canada_Covid2<-Canada_Covid
+Canada_Covid2$date<-Canada_Covid$date-2
+
+Canada_Covid3<-Canada_Covid
+Canada_Covid3$date<-Canada_Covid$date-3
+
+Canada_Covid4<-Canada_Covid
+Canada_Covid4$date<-Canada_Covid$date-4
+
+Canada_Covid5<-Canada_Covid
+Canada_Covid5$date<-Canada_Covid$date-5
+
+Canada_Covid6<-Canada_Covid
+Canada_Covid6$date<-Canada_Covid$date-6
+
+Canada_Covid7<-rbind.data.frame(Canada_Covid, Canada_Covid1, Canada_Covid2,
+                 Canada_Covid3, Canada_Covid4, Canada_Covid5,
+                 Canada_Covid6)
+
+# Merge the avgincidence_last7 with CLSA_com50
+CLSA_com50<-merge(CLSA_com50, select(Canada_Covid7, pruid, date, avgincidence_last7), 
+      by.x = c('PROV_COVID', 'start_datetime_COV'), 
+      by.y = c('pruid', 'date'),
+      all.x = T, all.y = F)
+
+save(CLSA_com50, file = '../1_data/private/CLSA_com50.RData')
+```
+
+
 ## To make the ggplotting much easier, adding formats and labels
 
 ```{r}
@@ -481,26 +541,26 @@ levels(CLSA_com50$outbreak)=c("0 = No", "1 = Yes")
 ```
 
 ```{r}
-# Labels
-label(CLSA_com50$AGE_NMBR_COVID)="Age"
-label(CLSA_com50$SEX_CLSA)="Sex"
-label(CLSA_com50$URBAN_RURAL_COVID)="Urban/Rural"
-label(CLSA_com50$SER_EDU_COV)="Education"
-label(CLSA_com50$SER_ETHN_WH_COV)="Race Binary"
-label(CLSA_com50$DEP_CESD10_COVX)="Dep Scale"
-label(CLSA_com50$dist_min)='Travel Dist'
-label(CLSA_com50$time_vac15)='Vax over 15 Days'
-label(CLSA_com50$outbreak)="Outbreak Peaks"
-label(CLSA_com50$PROV_5)="Prov Group"
+# Labels, from {Hmisc} pak
+Hmisc::label(CLSA_com50$AGE_NMBR_COVID)="Age"
+Hmisc::label(CLSA_com50$SEX_CLSA)="Sex"
+Hmisc::label(CLSA_com50$URBAN_RURAL_COVID)="Urban/Rural"
+Hmisc::label(CLSA_com50$SER_EDU_COV)="Education"
+Hmisc::label(CLSA_com50$SER_ETHN_WH_COV)="Race Binary"
+Hmisc::label(CLSA_com50$DEP_CESD10_COVX)="Dep Scale"
+Hmisc::label(CLSA_com50$dist_min)='Travel Dist'
+Hmisc::label(CLSA_com50$time_vac15)='Vax over 15 Days'
+Hmisc::label(CLSA_com50$outbreak)="Outbreak Peaks"
+Hmisc::label(CLSA_com50$PROV_5)="Prov Group"
+
+Hmisc::label(CLSA_com50$avgincidence_last7)="Avg inc in the wk 15D ago"
 ```
 
 Those in DBS group has more daily new cases 15 days before the sampling day.
 
 ## Save the dataset
+
 ```{r}
 save(CLSA_com50, file = '~/dbs-vs-venous-antibodies/1_data/private/CLSA_com50.RData')
 save(owid_covid, file = '~/dbs-vs-venous-antibodies/1_data/owid_covid.RData')
 ```
-
-
-
