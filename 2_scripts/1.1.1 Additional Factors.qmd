@@ -461,6 +461,7 @@ t.test(new_cases_per_million~SER_ADM_COV, data = CLSA_com50, var.equal=F)
 ```
 
 #### Get province-specific data, new cases per million
+
 ```{r}
 # The prov specific data is not available in WHO, need to use data driectly from canada.ca instead: https://health-infobase.canada.ca/covid-19/#a4
 
@@ -502,7 +503,6 @@ CLSA_com50<-merge(CLSA_com50, select(Canada_Covid7, pruid, date, avgincidence_la
 
 save(CLSA_com50, file = '../1_data/private/CLSA_com50.RData')
 ```
-
 
 ## To make the ggplotting much easier, adding formats and labels
 

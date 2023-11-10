@@ -1,0 +1,90 @@
+---
+title: "Impact of dried blood spot sample collection on SARS-CoV-2 antibody test results in a serological study of older Canadians"
+execute: 
+  echo: false
+format:
+  docx: 
+    reference-doc: word-style-reference-manuscript.docx
+  html: default
+bibliography: biball.bib
+csl: american-medical-association-brackets.csl
+#csl: apa.csl # Change the citation format to APA if preferred
+editor: visual
+crossref: 
+  thm-title: "Table"
+  thm-prefix: "Table"
+  cor-title: "Table S"
+  cor-prefix: "Table S"
+  lem-title: "Figure S"
+  lem-prefix: "Figure S"
+  fig-title: "**Figure**"
+---
+
+Jiacheng Chen^1^, W. Alton Russell^1^,
+
+<br>
+
+^1^School of Population and Global Health, McGill University, Montreal, Canada
+
+<br>
+
+```{r setup, include=FALSE}
+library(ggplot2)            # plots
+library(RefManageR)         # read/merge/write .bib file with R
+library(data.table)         # for using datatables instead of frames
+library(scales)             # formatting plot legends and text
+library(readxl)             # read.excel
+library(flextable)          # generating tables
+```
+
+```{r, include=FALSE}
+# Merge .bib files
+bib1<-ReadBib(file = "../5_manuscript/bib files/DBS vs VBS.bib")
+bib2<-ReadBib(file = "../5_manuscript/bib files/Propensity Score Matching.bib")
+bib3<-ReadBib(file = "../5_manuscript/bib files/Assays and S-Co.bib")
+
+m1<-merge(bib1, bib2)
+m1<-merge(m1, bib3, fields.to.check = 'all')
+
+WriteBib(m1, file = "../5_manuscript/biball.bib")
+```
+
+# Letter
+
+Over the past decades, serosurveillance has proven to be cost-effective to monitor the prevalence of infectious diseases, when compared to various forms of laboratory tests [@Wiens2022; @Drakeley2005; @Russell2019]. One traditional method of blood sample collection involves venous blood sampling (VBS), which requires participants to visit a testing center in person and provide their blood samples through venous extraction [@Simmonds2011]. Instead of VBS, studies estimating population prevalence of infectious disease markers in blood sometimes ask participants to self-collect and mail a dried blood spot (DBS) for laboratory testing, instead of having a venous blood samples collected by a trained health professional [@Zava2021]. DBS has gained increasing popularity in recent years due to its convenience and many SARS-CoV-2 serological studies have used DBS [@Meyers2021; @Zava2021; @Mackett2022]. However, limited data are available on evaluating its validity and whether DBS changes laboratory findings.
+
+In a national SARS-CoV-2 serological study of older Canadians, participants could choose whether to mail a DBS sample or provide a venous sample at a testing center [@Raina2019]. Upon the study data with both anti-N and anti-S assay results available (N=7,230), we developed a propensity score model to examine the association of demographics, geography, and health-related factors with the choice of DBS or venous sample. We applied propensity score weighting (weighting method: inverse probability of treatment weighting (IPTW)) to adjust for potential confounding variables and compare SARS-CoV-2 Anti-N and Anti-S assay results when using the same assay on DBS or venous samples.
+
+Participants choosing to provide in-person venous samples were more likely to be male, white, unvaccinated, and living in an urban area (**Fig. 1**). After propensity score weighting with balance achieved, venous samples were 223% more likely to be Anti-N positive (OR: 3.33, 95% CI: 2.78 - 4.01) and 27% more likely to be Anti-S positive (OR: 1.27, 95% CI: 1.08 - 1.49). Among Anti-S antibody positive samples, venous samples had significantly higher quantitative anti-S levels (**Fig. 2**), which is tested using Kolmogorov-Smirnov (KS) Test.
+
+We observed significant differences in sampling method preferences across provinces. Compared to British Columbia (BC), participants in Ontario (ON) and Quebec (QC) preferred in-person venous sampling. In the Atlantic provinces, however, there was a preference for at-home DBS sampling over the venous sampling approach. Stratified analysis by province revealed that these trends were mostly consistent with national-level data analysis, except for QC. In QC, higher average COVID-19 incidence (per 100,000 participants) was associated with increased propensity (OR: 1.05, 95% CI: 1.02 - 1.09) for in-person venous sampling, unlike other provinces.
+
+Our findings contrast with prior reports that serological tests perform similarly in DBS and venous samples [@Meyers2021; @Zava2021; @Mackett2022] and suggest that more work is needed to understand how different assays perform on DBS samples, and the provincial variations in choosing sampling methods at the behavioral level.
+
+<br>
+
+# Figure
+
+**Figure 1**: Odds ratios from the propensity score model predicting who is more likely to give an in-person venous sample vs. mailed DBS sample
+
+```{r}
+knitr::include_graphics("../4_output/figs/Fig.3 OR Plot.png")
+
+```
+
+1.  Adjusted: Odds ratios from the propensity score model, which is a multivariate logistic regression model.
+2.  Unadjusted: Odds ratios from each simple logistic regression model, regressing on venous blood sampling against DBS sampling.
+3.  Weighted: Odds ratios from simple logistic regression models comparing the difference between two sampling groups, using weights from IPTW.
+
+**Figure 2**: Empirical cumulative distribution function for the quantitative Anti-S level among participants who tested positive on the Anti-S assay. Venous samples tended to have higher Anti-S levels compared to DBS. 8.43% of venous samples were above the assay's upper limit of detection, compared to 0% of DBS.
+
+```{r}
+knitr::include_graphics("../4_output/figs/Fig.1c Weighted eCDF Anti-S.png")
+```
+
+<br>
+
+# References
+
+::: {#refs}
+:::

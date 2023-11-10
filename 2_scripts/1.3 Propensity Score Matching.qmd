@@ -504,14 +504,14 @@ psw.06.S %>%
 library(WeightIt)
 library(cobalt)      # bal.tab() for imbalance tab
 
-w.01 <- weightit(SER_ADM_COV~AGE_NMBR_COVID + SEX_CLSA +
-                             URBAN_RURAL_COVID +
+w.01 <- weightit(SER_ADM_COV~age10 + SEX_CLSA +
+                             urban_rural +
                              SER_ETHN_WH_COV  +
                              SER_EDU_COV +
                              DEP_CESD10_COVX +
-                             dist_min +
+                             dist_min_25km +
                              time_vac15 +
-                             PROV_5 + outbreak, 
+                             PROV_5 + avginc10_15d, 
             data=CLSA_com50.c6, estimand = 'ATE', method = 'glm')
 summary(w.01)
 
@@ -724,6 +724,25 @@ coefci(lmm.06a.SQ, vcov. = vcovCL, cluster = ~subclass, level = 0.95)
 ```
 
 Notes: VBS is 0.84 units higher (95% CI: 0.77-0.91) than DBS, in log10 scale of quantitative Anti-S results
+
+#### Weighted Data - Anti-N&S
+```{r}
+lmm.06.N<-glm(SER_NUCLEOCAPSID_COV~SER_ADM_COV,
+           data=CLSA_com50.c6, family = binomial(link = "logit"),
+           weights = w.weights)
+# ummary(psw.06.N)
+
+lmm.06.N %>%
+  gtsummary::tbl_regression(exponentiate = T)
+
+# OR of anti-S positive
+lmm.06.S<-glm(SER_SPIKE_COV~SER_ADM_COV,
+              data=CLSA_com50.c6, family = binomial(link = "logit"),
+              weights = w.weights)
+lmm.06.S %>%
+  gtsummary::tbl_regression(exponentiate = T)
+```
+
 
 ## ======== Part.IV Making Plots for outcomes (Anti-N & Anti-S) =============
 
@@ -1127,10 +1146,11 @@ legend("bottomright", legend = c("DBS", "VBS"),
        lwd = 3, col = c("blue", "red"))
 ```
 
+As it indicated clear above, when sample size is small (~10) we could observe the difference btw unweighted eCDF and weighted eCDF. However, when the sample size is large (~1000) the difference between two figure is not visible to human readers
+
 ## ========================= Part. V OR Plot ===============================
 
 #### Model.06
-
 ```{r}
 CLSA_com50$dist_min_km<-CLSA_com50$dist_min/1000
 CLSA_com50$age10<-CLSA_com50$AGE_NMBR_COVID/10
@@ -1151,6 +1171,47 @@ summary(lm06p)
 tbl_regression(lm06p, exponentiate = T)
 ```
 
+#### Model.06u
+```{r}
+# Same model as model 06, but few variable are recoded to make the OR plot more visual-friendly.
+
+lm06.u <- glm(SER_ADM_COV~age10 + 
+            SEX_CLSA +
+            urban_rural +
+            relevel(SER_ETHN_WH_COV, ref = '1=WH')  +
+            SER_EDU_COV +
+            DEP_CESD10_COVX +
+            dist_min_25km +
+            time_vac15 + avginc10_15d +
+            PROV_5, 
+            data=CLSA_com50,
+            family = binomial(link='logit'))
+gtsummary::tbl_regression(lm06.u, exponentiate = T)
+
+# Additional Modeling with int terms
+lm06.ui <- glm(SER_ADM_COV~age10 + 
+            SEX_CLSA +
+            urban_rural +
+            relevel(SER_ETHN_WH_COV, ref = '1=WH')  +
+            SER_EDU_COV +
+            DEP_CESD10_COVX +
+            dist_min_25km +
+            time_vac15 + avginc10_15d +
+            relevel(PROV_5, ref = '5 = BC') + 
+            relevel(PROV_5, ref = '5 = BC')*avginc10_15d, 
+            data=CLSA_com50,
+            family = binomial(link='logit'))
+gtsummary::tbl_regression(lm06.ui, exponentiate = T)
+
+summary(lm06.u)  # AIC=8016.8
+summary(lm06.ui) # AIC=7881.3
+
+lmtest::lrtest(lm06.u, lm06.ui)
+# We found significant diff between the non-int model and the model with int btw prov and incidence. The inc itself is prov-specific, so it make sense the AIC decreases as we add interaction terms.
+```
+
+
+
 #### Build Simple OR for each variable
 
 ```{r}
@@ -1159,18 +1220,26 @@ simple_reg_OR<-function(v){
  lm_temp<-glm(SER_ADM_COV~v, data=CLSA_com50,
              family = binomial(link='logit'))
  print(summary(lm_temp))
- tbl_regression(lm_temp, exponentiate = T)
+ gtsummary::tbl_regression(lm_temp, exponentiate = T)
+}
+
+simple_reg_OR.w<-function(v){
+ lm_temp<-glm(SER_ADM_COV~v, data=CLSA_com50.c6,
+             family = binomial(link='logit'), weights = CLSA_com50.c6$w.weights)
+ print(summary(lm_temp))
+ gtsummary::tbl_regression(lm_temp, exponentiate = T)
 }
 
 # test using age (10-year scale)
 simple_reg_OR(CLSA_com50$age10) # Looks good
+simple_reg_OR.w(CLSA_com50.c6$age10) # Looks good
 ```
 
 ```{r}
 # Add other variables
 simple_reg_OR(CLSA_com50$SEX_CLSA)                            # Sex
 
-simple_reg_OR(CLSA_com50$URBAN_RURAL_COVID)                   # Rural/Urban
+simple_reg_OR(CLSA_com50$urban_rural)                         # Rural/Urban, 3cate
 
 simple_reg_OR(relevel(CLSA_com50$SER_ETHN_WH_COV, ref='1=WH'))# WH/Non-WH
 
@@ -1178,33 +1247,65 @@ simple_reg_OR(CLSA_com50$SER_EDU_COV)                         # Education
 
 simple_reg_OR(CLSA_com50$DEP_CESD10_COVX)                     # Dep Scale
 
-simple_reg_OR(CLSA_com50$dist_min_km)                         # Travel Dist
+simple_reg_OR(CLSA_com50$dist_min_25km)                       # Travel Dist
 
 simple_reg_OR(CLSA_com50$time_vac15)                          # Vax>15 Days?
 
 simple_reg_OR(relevel(CLSA_com50$PROV_5, ref='5 = BC'))       # Prov, ref=BC
 
-simple_reg_OR(CLSA_com50$outbreak)                            # Outbreak Peak*
+simple_reg_OR(CLSA_com50$avginc10_15d)                        # Outbreak Peak*
 
 # *Outbreak Peak* is defined by: >50 confirmed cases/1 million pop in Canada. Due to the delayed effect of infection to elevated Ab level, we left-shift it by 15 days. So it's "outbreak peak 15 days ago".
 ```
+#### Add bivariate analysis using weighted data
+```{r}
+simple_reg_OR.w(CLSA_com50.c6$SEX_CLSA)                            # Sex
+
+simple_reg_OR.w(CLSA_com50.c6$urban_rural)                         # Rural/Urban, 3cate
+
+simple_reg_OR.w(relevel(CLSA_com50.c6$SER_ETHN_WH_COV, ref='1=WH'))# WH/Non-WH
+
+simple_reg_OR.w(CLSA_com50.c6$SER_EDU_COV)                         # Education
+
+simple_reg_OR.w(CLSA_com50.c6$DEP_CESD10_COVX)                     # Dep Scale
+
+simple_reg_OR.w(CLSA_com50.c6$dist_min_25km)                       # Travel Dist
+
+simple_reg_OR.w(CLSA_com50.c6$time_vac15)                          # Vax>15 Days?
+
+simple_reg_OR.w(relevel(CLSA_com50.c6$PROV_5, ref='5 = BC'))       # Prov, ref=BC
+
+simple_reg_OR.w(CLSA_com50.c6$avginc10_15d)                        # Outbreak Peak*
+
+```
+
+
 
 #### Import the OR table
 
 ```{r}
 # This OR table is created outside of R manually, by filling the ORs from model.06p and those from simple logistic regression models above.
 library(readxl)
-OR_import <- read_excel("~/dbs-vs-venous-antibodies/3_intermediate/OR_import.xlsx")
+OR_import <- read_excel("~/dbs-vs-venous-antibodies/3_intermediate/OR_import.xlsx",
+                        sheet = "Reg")
 OR_import$Adj<-as.factor(OR_import$Adj)
+
+# Edit the data, add sig indicator
+OR_import$alpha <- rep(1, length(OR_import$group))
+OR_import$alpha[(OR_import$lower <1 & OR_import$higher <1) |
+            (OR_import$lower >1 & OR_import$higher >1)]<-0
+OR_import$alpha<-as.factor(OR_import$alpha)
+levels(OR_import$alpha)=c("Significant","Insignificant")
 
 
 g01<-ggplot(OR_import, aes(x = OR, y = group)) + 
     geom_vline(aes(xintercept = 1), size = .75, linetype = "dashed",color='red')+
-    geom_errorbarh(aes(xmax = higher, xmin = lower, color=Adj),
+    geom_errorbarh(aes(xmax = higher, xmin = lower, color=Adj, linetype=alpha),
                        position = position_dodge(width = 1.0),
                        linewidth = .5, height = .5) +
-    geom_point(size = 2, aes(colour=Adj),
+    geom_point(size = 2, aes(colour=Adj,  shape=alpha),
                position = position_dodge(width = 1.0))+
+    scale_shape_manual(values=c(16, 1))+
     theme_bw()+
     theme(plot.background = element_blank(),
           panel.grid.major = element_blank(),

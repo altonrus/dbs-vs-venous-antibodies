@@ -53,8 +53,28 @@ levels(CLSA_com50$urban_rural)=c("0 = Rural","1 = Urban Core",
                                        "2 = Urban Others")
 
 table(CLSA_com50$URBAN_RURAL_COVID, CLSA_com50$urban_rural, useNA = 'ifany')
-save(CLSA_com50, file = "../1_data/private/CLSA_com50.RData")
 
+# Clean missings in dep
+CLSA_com50$DEP_CESD10_COVX[CLSA_com50$DEP_CESD10_COVX==-88881]<-NA
+table(CLSA_com50$DEP_CESD10_COVX, useNA = 'ifany') #-88881 recoded as NA
+
+## Recode variables, make them looks better in the figure
+
+# Traveling dist, divide by 25km (OR ~ 25km+ in distance)
+CLSA_com50$dist_min_25km<-CLSA_com50$dist_min_km/25
+hist(CLSA_com50$dist_min_25km)
+
+
+# Incidence, divide it by 10, make it OR~1+ in per 100,000 people
+CLSA_com50$avginc10_15d<-CLSA_com50$avgincidence_last7/10
+hist(CLSA_com50$avginc10_15d)
+
+
+save(CLSA_com50, file = "../1_data/private/CLSA_com50.RData")
+```
+
+
+```{r}
 # create clean dataset .c6
 CLSA_com50.c6<-CLSA_com50 %>%
   dplyr::select(SER_ADM_COV, AGE_NMBR_COVID , age10, SEX_CLSA ,
@@ -62,12 +82,10 @@ CLSA_com50.c6<-CLSA_com50 %>%
             SER_ETHN_WH_COV  ,
             SER_EDU_COV ,
             DEP_CESD10_COVX ,
-            dist_min , dist_min_km,
+            dist_min , dist_min_km, dist_min_25km,
             time_vac15,
-            PROV_5, outbreak, avgincidence_last7,
+            PROV_5, outbreak, avgincidence_last7, avginc10_15d,
             SER_NUCLEOCAPSID_COV, SER_SPIKE_COV, SPIKE_ANTIBODY)
-CLSA_com50.c6$DEP_CESD10_COVX[CLSA_com50.c6$DEP_CESD10_COVX==-88881]<-NA
-table(CLSA_com50.c6$DEP_CESD10_COVX, useNA = 'ifany') #-88881 recoded as NA
 
 CLSA_com50.c6<-CLSA_com50.c6 %>% 
   tidyr::drop_na()
@@ -96,8 +114,8 @@ w.ATL <- weightit(SER_ADM_COV~age10 + SEX_CLSA +
                              SER_ETHN_WH_COV  +
                              SER_EDU_COV +
                              DEP_CESD10_COVX +
-                             dist_min_km +
-                             time_vac15 + avgincidence_last7, 
+                             dist_min_25km +
+                             time_vac15 + avginc10_15d, 
             data=CLSA_com50.ATL, estimand = 'ATE', method = 'glm')
 summary(w.ATL)
 ```
@@ -353,6 +371,30 @@ lmm.BC.S %>%
 
 ## ===================== Part. II Build OR Plot ============================ ##
 
+## Depression Scale do not have ORs far from null (OR=1), we need to see if we want to keep it
+
+```{r}
+# Apply model selection algothrism
+
+CLSA_com50.c7<-CLSA_com50 %>%
+  dplyr::select(SER_ADM_COV, age10, SEX_CLSA ,
+            urban_rural,
+            SER_ETHN_WH_COV  ,
+            SER_EDU_COV ,
+            DEP_CESD10_COVX ,
+            dist_min_25km,
+            time_vac15,
+            PROV_5, avginc10_15d)
+
+lmAIC <- glm(SER_ADM_COV~., data=CLSA_com50.c7, family = binomial(link='logit'))
+MASS::stepAIC(lmAIC, direction = 'backward')
+gtsummary::tbl_regression(lmAIC, exponentiate = T)
+
+# Conclusion: the depression scale is an important factor in the best-fit model, we shall not remove it as the AIC would increase.  
+```
+
+
+
 ## First we need to build models, then pull ORs from the model
 
 #### 2.1 ATL provinces (NFL & NS)
@@ -363,9 +405,8 @@ lm06.ATL <- glm(SER_ADM_COV~age10 +
             urban_rural +
             relevel(SER_ETHN_WH_COV, ref = '1=WH')  +
             SER_EDU_COV +
-            DEP_CESD10_COVX +
-            dist_min_km +
-            time_vac15 + avgincidence_last7, 
+            dist_min_25km +
+            time_vac15 + avginc10_15d, 
             data=CLSA_com50.ATL,
             family = binomial(link='logit'))
 
@@ -532,19 +573,4 @@ dev.off()
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-## At the end of the figure, add ORs for Anti-N and Anti-S. Those numbers come from the weighted analysis, instead of the unweighted logistic regression models
 

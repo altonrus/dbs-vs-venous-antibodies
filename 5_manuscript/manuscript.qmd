@@ -1,5 +1,5 @@
 ---
-title: "Impact of venous and dried blood spot sample collection in a study of SARS-CoV-2 antibody levels in older Canadians"
+title: "Impact of dried blood spot sample collection on SARS-CoV-2 antibody test results in a serological study of older Canadians"
 execute: 
   echo: false
 format:
@@ -99,13 +99,13 @@ WriteBib(m1, file = "../5_manuscript/biball.bib")
 
 # Abstract
 
-**Background:** A
+**Background:** Studies estimating population prevalence of infectious disease markers in blood sometimes ask participants to self-collect and mail a dried blood spot (DBS) for laboratory testing, instead of having a venous blood samples collected by a trained health professional. Many SARS-CoV-2 serological studies have used DBS, and limited data are available on whether DBS changes laboratory findings.
 
-**Methods:** A
+**Methods:** In a national SARS-CoV-2 serological study of older Canadians, participants could choose whether to mail a DBS sample or provide an venous sample at a testing center. We developed a propensity score model to identify whether variables related to demographics, geography, and health were related to choice of DBS or venous sample. We used propensity score weighting to adjust for potential confounding variables and compare SARS-CoV-2 Anti-N and Anti-S assay results when using the same assay on DBS or venous samples.
 
-**Results:** A
+**Results:** Participants choosing to provide in-person venous samples were more likely to be male, white, unvaccinated, and living in an urban area. After propensity score weighting, venous samples were 223% more likely to be Anti-N positive (OR: 3.33, 95% CI: 2.78 - 4.01) and 27% more likely to be Anti-S positive (OR: 1.27, 95% CI: 1.08 - 1.49). Among samples that tested positive for Anti-S antibodies, venous samples had significantly higher quantitative anti-S levels.
 
-**Conclusions:** A
+**Conclusions:** In a large Canadian study, we found that DBS was associated with lower positivity rates and quantitative antibody levels for SARS-CoV-2 compared to venous samples, even after controlling for potential confounding variables. Our findings contrast with prior reports that serological tests perform similarly in DBS and venous samples and suggest that more work is needed to understand how different assays perform on DBS samples.
 
 {{< pagebreak >}}
 
@@ -124,6 +124,15 @@ DBS and VBS
 {{< pagebreak >}}
 
 # Methods
+
+```{r}
+# Since we are using the "letter to editor--new data" format and the journal of first choice is JCM (Journal of Clinical Mircobiology). We don't need all the component as a reaserch paper. 
+
+# The size of manuscript is limited to <500 words
+# No abstract
+# Only 1-3 Tab+Fig
+# 
+```
 
 ## Dataset
 
