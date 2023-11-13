@@ -51,9 +51,9 @@ Before conducting propensity score weighting to calculate weights for each obser
 knitr::include_graphics("../4_output/figs/Fig.3 OR Plot.png")
 ```
 
-Upon completion of the full model, we constructed a best-fit model utilizing a backward stepwise model selection strategy. The model with lowest Akaike Information Criterion (AIC) value was selected as the best-fit model. Subsequently, we applied this best-fit model to calculate propensity scores for the selection of VBS over DBS. Participants from both groups will then be weighteded based on their propensity scores using Inverse probability of treatment weighting (IPTW). As depicted in **Figure 1**, balance has been achieved between the DBS and VBS groups. All factors used in the propensity score model distribute evenly across the two comparison groups.
+Upon completion of the full model, we constructed a best-fit model utilizing a backward stepwise model selection strategy. The model with lowest Akaike Information Criterion (AIC) value was selected as the best-fit model. Subsequently, we applied this best-fit model to calculate propensity scores for the selection of VBS over DBS. Participants from both groups will then be weighteded based on their propensity scores using inverse probability of treatment weighting (IPTW). As depicted in **Figure 1**, balance has been achieved between the DBS and VBS groups. All factors used in the propensity score model distribute evenly across the two comparison groups.
 
-Based on the national data, we conducted a stratified analysis by province. Our study sample included participants from seven provinces, which were recategorized into five groups according to their locations and geographic proximities: British Columbia (BC), Manitoba (MB) & Alberta (AB), Ontario (ON), Quebec (QC), and Newfoundland (NL) & Nova Scotia (NS). The grouping is based on their geographic locations and proximity to each other. The pandemic's impact varied across these regions, with residents adapting differently to the diverse policies implemented by their respective health departments \[add citations\]. As illustrated in **Figure 3** below, the odds ratios for venous blood sampling vary among the five provincial groups.
+Based on the national data, we conducted a stratified analysis by province. Our study sample included participants from seven provinces, which were recategorized into five groups according to their locations and geographic proximities: British Columbia (BC), Manitoba (MB) & Alberta (AB), Ontario (ON), Quebec (QC), and Newfoundland (NL) & Nova Scotia (NS). The pandemic's impact varied across these regions, with residents adapting differently to the diverse policies implemented by their respective health departments \[add citations\]. As illustrated in **Figure 3** below, the odds ratios for venous blood sampling vary among the five provincial groups.
 
 **Figure 3**: Odds Ratio of Venous Blood Sampling, Stratified by Province Groups
 
@@ -63,15 +63,16 @@ knitr::include_graphics("../4_output/figs/Fig.4 OR Plot by prov.png")
 
 ## Analysis with Weighted Data
 
-Utilizing weighted data, we further analyzed the differences in assay positivity between the DBS and VBS cohorts. The outcomes of the stratified analysis align with those from the unstratified national dataset. We observed an increased odds of assay positivity in venous blood samples for both anti-N and anti-S assays.
+Utilizing weighted data, we further analyzed the differences in assay positivity between the DBS and VBS cohorts. The outcomes of the stratified analysis aligned with those from the unstratified national dataset. We observed an increased odds of assay positivity in venous blood samples for both anti-N and anti-S assays.
 
 **Figure 4**. Odds Ratio of Assay Positivity, Stratified by Province Groups
 ```{r}
 knitr::include_graphics("../4_output/figs/Fig.5 OR Plot of Anti-N & S by prov.png")
 ```
 
-To analyze the variation in quantitative Anti-S immunoassay results, we employed the weighted empirical cumulative distribution function (eCDF) to visualize the distribution in the DBS and VBS cohorts (**Fig. Y**). We used Kolmogorov-Smirnov (KS) Test to assess whether the distributions are statistically-significantly different. 
+To analyze the variation in quantitative Anti-S immunoassay results, we employed the weighted empirical cumulative distribution function (eCDF) to visualize the distribution in the DBS and VBS cohorts (**Fig. 5**). We used Kolmogorov-Smirnov (KS) Test to assess whether the distributions are statistically-significantly different. Venous samples tended to have higher Anti-S levels compared to DBS. 8.43% of venous samples were above the assay's upper limit of detection, compared to 0% of DBS.
 
+**Figure 5**: Empirical cumulative distribution function for the quantitative Anti-S level among participants who tested positive on the Anti-S assay. 
 ```{r}
 knitr::include_graphics("../4_output/figs/Fig.1c Weighted eCDF Anti-S.png")
 ```
