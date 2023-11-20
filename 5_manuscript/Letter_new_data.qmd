@@ -49,9 +49,9 @@ m1<-merge(m1, bib3, fields.to.check = 'all')
 WriteBib(m1, file = "../5_manuscript/biball.bib")
 ```
 
-# Letter (377 / 500 Words)
+# Letter (384 / 500 Words)
 
-Participant-collected dried blood spot (DBS) are a convenient, minimally invasive alternative to phlebotomist-collected venous samples for population serological surveillance. Several SARS-CoV-2 serosurveillance studies collected DBS samples in the mail to reach wider geographic areas and minimize face-to-face contact during the pandemic[@Zava2021; @Meyers2021; @Mackett2022]. Prior studies characterized assay accuracy with DBS as 'reliable', based on their high sensitivity and specificity, which were derived from paired comparisons with venous samples[@Simmonds2011; @Meyers2021; @Morley2020]. A recent study comparing SARS-CoV-2 IgG results from paired venous and DBS samples concluded performance was "comparable"[@Nikiforuk2022]. In a national SARS-CoV-2 serological study of older Canadians conducted by the Canadian Longitudinal Study on Aging[@Raina2019], participants choose whether to mail a DBS sample or provide a venous sample at a testing center (**Fig. S1**). We analyze these data to assess for systematic differences in assay findings between DBS and venous samples.
+Participant-collected dried blood spots (DBS) are a convenient, minimally invasive alternative to phlebotomist-collected venous samples for population serological surveillance. Several SARS-CoV-2 serosurveillance studies collected DBS samples in the mail to reach wider geographic areas and minimize face-to-face contact during the pandemic [@Zava2021; @Meyers2021; @Mackett2022]. Prior studies characterized assay accuracy with DBS as 'reliable', based on their high sensitivity and specificity, which were derived from paired comparisons with venous samples [@Simmonds2011; @Meyers2021; @Morley2020]. A recent study comparing SARS-CoV-2 IgG results from paired venous and DBS samples concluded performance was "comparable" [@Nikiforuk2022]. In a national SARS-CoV-2 serological study of older Canadians conducted by the Canadian Longitudinal Study on Aging [@Raina2019], participants choose whether to mail a DBS sample or provide a venous sample at a testing center. We analyze these data to assess for systematic differences in assay findings between DBS and venous samples.
 
 ```{r, include=FALSE}
 # The sample size
@@ -68,7 +68,7 @@ table(is.na(CLSA_com50$NUCLEOCAPSID_ANTIBODY))
 table(is.na(CLSA_com50$SPIKE_ANTIBODY))
 ```
 
-We developed a propensity model to examine the association of demographics, geography, and health-related factors with the choice of DBS or venous sample (details in **Supplemental Methods**). We used inverse probability of treatment weighting (IPTW) to adjust for potential confounding variables and compare SARS-CoV-2 Anti-N and Anti-S (7,230 assays each) results between participants who provided DBS (n = 3,773) or venous samples (n = 3,450).
+We developed a propensity model to examine the association of demographics, geography, and health-related factors with the choice of DBS or venous sample, and we compared SARS-CoV-2 Anti-N and Anti-S (7,230 assays each) results between participants who provided DBS (n = 3,773) or venous samples (n = 3,450; **Fig. S1**), using inverse probability of treatment weighting to adjust from potential confounding variables (details in **Supplemental Methods**).
 
 ```{r, include=FALSE}
 # "would have been" scenarios (la conditionel)
@@ -134,11 +134,11 @@ sum(CLSA_com50.c6$S.p.alld)/6174  # 43.74%
 sum(CLSA_com50.c6$S.p.allv)/6174  # 50.68%
 ```
 
-Participants who provided in-person venous samples were more likely to be male, white, unvaccinated, and living in an urban area (**Fig. 1**). After propensity score weighting with balance achieved, venous samples were 223% more likely to be Anti-N positive (Odds ratio \[OR\]: 3.33, 95% confidence interval \[CI\]: 2.78--4.01) and 27% more likely to be Anti-S positive (OR: 1.27, 95% CI: 1.08--1.49). Among Anti-S antibody positive samples, the distribution of quantitative anti-S levels differed (p \< 0.0001, Kolmogoriv-Smirnov test), and venous samples were substantially higher on average (**Fig. 2**). Province-level sub-analyses yielded consistent findings (**Fig. S3**). We estimate that cohort anti-N seropositivity would have been 2.49% using DBS only and 8.12% using venous samples only, and anti-S seropositivity would have been 43.74% using DBS and 50.68% using venous samples.
+Participants who provided in-person venous samples were more likely to be male, white, unvaccinated, and living in an urban area (**Fig. 1**). Propensity weights achieved good balance. After weighting, venous samples were 223% more likely to be Anti-N positive (Odds ratio \[OR\]: 3.33, 95% confidence interval \[CI\]: 2.78--4.01) and 27% more likely to be Anti-S positive (OR: 1.27, 95% CI: 1.08--1.49). Among Anti-S antibody positive samples, the distribution of quantitative anti-S levels differed between DBS and venous samples (p \< 0.0001, Kolmogoriv-Smirnov test), with substantially higher in venous samples (**Fig. 2**). Province-level sub-analyses yielded consistent findings (**Fig. S3**). Compared to using venous samples, we estimate that DBS for all participants would have underestimated anti-N seropositivity by 69.3% (2.49% positive vs. 8.12%) and would have underestimated anti-S positivity by 13.7% (43.74% positive vs. 50.68%).
 
-In contrast to earlier reports [@Meyers2021; @Zava2021; @Mackett2022; @Morley2020], we found substantial differences between SARS-CoV-2 serological findings in DBS and venous samples. While assay-specific in-house calibration may be mitigate these differences [@Zava2021], more work is needed to understand how use of DBS samples impacts population serosurveillance estimates.
+In contrast to earlier reports [@Meyers2021; @Zava2021; @Mackett2022; @Morley2020], we found substantial differences between SARS-CoV-2 serological findings in DBS and venous samples. While assay-specific in-house calibration may mitigate these differences [@Zava2021], more work is needed to understand how use of DBS samples impacts population serosurveillance estimates.
 
-<br>
+{{< pagebreak >}}
 
 # Declarations
 
@@ -176,7 +176,19 @@ knitr::include_graphics("../4_output/figs/Fig.3 OR Plot.png")
 knitr::include_graphics("../4_output/figs/Fig.1c Weighted eCDF Anti-S.png")
 ```
 
-**Figure 2**: Empirical cumulative distribution function for the quantitative Anti-S level among participants who tested positive on the Anti-S assay. Venous samples tended to have higher Anti-S levels compared to DBS. 8.43% of venous samples were above the assay's upper limit of detection, compared to 0% of DBS.
+```{r, include=FALSE}
+# Calculate mean vs median in CLSA data (use complete case data)
+
+# DBS
+summary(CLSA_com50.c6$SPIKE_ANTIBODY[CLSA_com50.c6$SER_SPIKE_COV==1 &
+                                     CLSA_com50.c6$SER_ADM_COV==0])
+
+# VBS
+summary(CLSA_com50.c6$SPIKE_ANTIBODY[CLSA_com50.c6$SER_SPIKE_COV==1 &
+                                     CLSA_com50.c6$SER_ADM_COV==1])
+```
+
+**Figure 2**: Empirical cumulative distribution function for the quantitative Anti-S level among participants who tested positive on the Anti-S assay. Venous samples tended to have higher Anti-S levels (mean: 300.54 AU/ml, median: 38.63 AU/ml) compared to DBS (mean: 105.75 AU/ml, median: 3.43 AU/ml). 8.43% of venous samples were above the assay's upper limit of detection, compared to 0% of DBS.
 
 {{< pagebreak >}}
 
@@ -186,48 +198,42 @@ knitr::include_graphics("../4_output/figs/Fig.1c Weighted eCDF Anti-S.png")
 
 # Supplemental methods
 
-Here we describe additional details about the methodology used.
-
 ## Dataset
 
-The Canadian Longitudinal Study on Aging (CLSA) is a comprehensive national long-term study designed to track approximately 50,000 individuals aged 45 to 85 years at recruitment for a minimum of 20 years [@Raina2019]. During the COVID-19 pandemic, several studies were conducted to collect and analyze blood samples from CLSA participants, aimed at comprehending and evaluating the pandemic's population-level health impact.
+The Canadian Longitudinal Study on Aging (CLSA) is a comprehensive national long-term study designed to track approximately 50,000 individuals aged 45 to 85 years at recruitment for a minimum of 20 years [@Raina2019]. The CLSA COVID-19 Antibody Study has two complementary cohorts. The first one is called "comprehensive cohort", in which 30,097 participants were randomly selected from locations within 25-50 km of the data collection sites (DCS) and underwent in-person interviews, providing detailed information on demographics, physical and mental health status, as well as vaccination and hospitalization history. The second cohort, known as the "tracking cohort," was interviewed by telephone. The detailed sampling process of CLSA is presented in the flowchart (**Fig. S1**).
 
-The dataset utilized in this study was sourced from the CLSA COVID-19 Antibody Study, with over 19,000 CLSA participants across ten provinces included [@Raina2019]. The dataset comprises demographic information, self-reported health status, vaccination and hospitalization history, and the results of SARS-CoV-2 immunoassay tests.
+During the COVID-19 pandemic, the CLSA COVID-19 Antibody Study was conducted to evaluate the pandemic's population-level health impact on older Canadians. The CLSA COVID-19 Antibody Study included over 18,000 CLSA participants across ten provinces from November 2020 to July 2021 [@canadian_longitudinal_study_on_aging_covid-19_2022]. Among those participants, 10,259 from the comprehensive cohort provided samples that were suitable for testing, within which N=4,258 contributed venous blood samples, and N=5,495 provided dried blood samples. In addition to demographic and health status variables, the data we acquired included immunoassay tests results.
 
-The CLSA COVID-19 Antibody Study has two complementary cohorts. The first one is called "comprehensive cohort", in which 17,399 participants were invited and 9,753 of them agreed to participant and provided testable samples with complete results. Within this group, N=4,258 contributed venous blood samples, and N=5,495 provided dried blood samples. Participants in the comprehensive cohort were randomly selected from locations within 25-50 km of the data collection sites (DCS) and underwent in-person interviews, providing detailed information on demographics, physical and mental health status, as well as vaccination and hospitalization history. The second cohort, known as the "tracking cohort," was interviewed by telephone. The detailed sampling process of CLSA COVID-19 Antibody Study is presented in the flowchart (**Fig. S1**). For our analysis, we exclusively utilized data from the comprehensive cohort, as it provides more comprehensive demographic and health condition data. Additionally, we excluded participants residing in regions located more than 50 km from the data collection center, as their extended travel distance is caused by recent relocations subsequent to enrollment in the study. The final sample size included in our analysis was 7,230.
+In our analysis, we utilized data exclusively from the comprehensive cohort of the CLSA COVID-19 Antibody Study, as it provides more comprehensive demographic and health condition data. Additionally, we excluded participants residing in regions located more than 50 km from the data collection center, as their extended travel distance is caused by recent relocations subsequent to enrollment in the study. The final sample size included in our analysis was 7,230.
 
-## Bivariate Analysis and Multivariate Regression Modeling
+## Statistical analysis
 
-Before conducting propensity score weighting to calculate weights for each observations and analyze the weighted data, we performed an initial unadjusted bivariate analysis to compare the DBS and VBS groups. Additionally, we developed multivariate logistic regression models, regressing VBS/DBS against demographic factors, physical and mental health conditions, travel distance, vaccination status, and time since the last COVID outbreak. The comprehensive results generated by those simple logistic regression models and the full model are displayed in the odds ratio (OR) plot (**Fig. 1**).
+**Analyzing predictors of in-person venous samples vs. DBS:** Before conducting propensity score weighting, we performed an initial unadjusted bivariate analysis to compare the DBS and VBS groups. Additionally, we developed multivariate logistic regression models that regressed VBS/DBS against demographic factors, physical and mental health conditions, travel distance, vaccination status, and time since the last COVID outbreak. The comprehensive results generated by those simple logistic regression models and the full model are displayed in the odds ratio (OR) plot (**Fig. 1**).
 
-Upon completion of the full model, we constructed a best-fit model utilizing a backward stepwise model selection strategy. The model with lowest Akaike Information Criterion (AIC) value was selected as the best-fit model. Subsequently, we applied this best-fit model to calculate propensity scores for the selection of VBS over DBS. Participants from both groups were weighteded based on their propensity scores using inverse probability of treatment weighting (IPTW). As depicted in **Figure 1**, balance has been achieved between the DBS and VBS groups. All factors used in the propensity score model distribute evenly across the two comparison groups.
+**Propensity score weighting:** Upon completion of the full model, we constructed a best-fit model utilizing a backward stepwise model selection strategy. The model with lowest Akaike Information Criterion (AIC) value was selected as the best-fit model. Subsequently, we applied this best-fit model to calculate propensity scores for the selection of VBS over DBS. Participants from both groups were weighteded based on their propensity scores using inverse probability of treatment weighting (IPTW). IPTW achieved good balance between the DBS and VBS groups, illustrated by the fact that the odds ratios in the model are all not significant after applying the weights.
 
-Based on the national data, we conducted a stratified analysis by province. Our study sample included participants from seven provinces, which were recategorized into five groups according to their locations and geographic proximities: British Columbia (BC), Manitoba (MB) & Alberta (AB), Ontario (ON), Quebec (QC), and Newfoundland (NL) & Nova Scotia (NS). The pandemic's impact varied across these regions, with residents adapting differently to the diverse policies implemented by their respective health departments [@Adeyinka2022; @Hale2021]. **Figure S2** illustrates the variation in odds ratios for the preference of venous blood sampling across provinces.
+**Analysis with Weighted Data：** Utilizing weighted data, we further analyzed the differences in assay positivity between the DBS and VBS cohorts. The outcomes of the stratified analysis (**Fig. S3**) aligned with those from the unstratified national dataset. To analyze the variation in quantitative Anti-S immunoassay results, we employed the weighted empirical cumulative distribution function (eCDF) to visualize the distribution in the DBS and VBS cohorts (**Fig. 2**). We used Kolmogorov-Smirnov (KS) Test to assess whether the distributions are statistically-significantly different.
 
-## Analysis with Weighted Data
-
-Utilizing weighted data, we further analyzed the differences in assay positivity between the DBS and VBS cohorts. The outcomes of the stratified analysis (**Fig. S3**) aligned with those from the unstratified national dataset.
-
-To analyze the variation in quantitative Anti-S immunoassay results, we employed the weighted empirical cumulative distribution function (eCDF) to visualize the distribution in the DBS and VBS cohorts (**Fig. 2**). We used Kolmogorov-Smirnov (KS) Test to assess whether the distributions are statistically-significantly different.
+**Sub-analyses:** Based on the national data, we conducted a stratified analysis by province. Our study sample included participants from seven provinces, which were recategorized into five groups according to their locations and geographic proximities: British Columbia (BC), Manitoba (MB) & Alberta (AB), Ontario (ON), Quebec (QC), and Newfoundland (NL) & Nova Scotia (NS). The pandemic's impact varied across these regions, with residents adapting differently to the diverse policies implemented by their respective health departments [@Adeyinka2022; @Hale2021]. **Figure S2** illustrates the variation in odds ratios for the preference of venous blood sampling across provinces.
 
 {{< pagebreak >}}
 
 # Supplemental figures
 
 ```{r}
-knitr::include_graphics("../4_output/figs/Fig 6. CLSA Data Flow Chart.png")
+knitr::include_graphics("../4_output/figs/Fig 7. CLSA Data Collection.jpg")
 ```
 
-**Figure S1**: CLSA COVID-19 Antibody Study Sampling Process [@Raina2019]
+**Figure S1: CLSA COVID-19 Study Sampling Process.** Reproduced from <https://www.clsa-elcv.ca/doc/2429>
 
 ```{r}
 knitr::include_graphics("../4_output/figs/Fig.4 OR Plot by prov.png")
 ```
 
-**Figure S2**: Odds Ratio of Venous Blood Sampling, Stratified by Province Groups. The odds ratios for venous blood sampling vary among the five provincial groups. We observed significant differences in sampling method preferences across provinces. Compared to British Columbia (BC), participants in Ontario (ON) and Quebec (QC) preferred in-person venous sampling. In the Atlantic provinces, however, there was a preference for at-home DBS sampling over the venous sampling approach.
+**Figure S2. Odds Ratio of Venous Blood Sampling, Stratified by Province or Region.** The odds ratios for venous blood sampling vary among the five provincial groups. We observed significant differences in sampling method preferences across provinces. Compared to British Columbia (BC), participants in Ontario (ON) and Quebec (QC) preferred in-person venous sampling. In the Atlantic provinces, however, there was a preference for at-home DBS sampling over the venous sampling approach.
 
 ```{r}
 knitr::include_graphics("../4_output/figs/Fig.5 OR Plot of Anti-N & S by prov.png")
 ```
 
-**Figure S3**. Odds Ratio of Assay Positivity, Stratified by Province Groups. We observed an increased odds of assay positivity in venous blood samples for both anti-N and anti-S assays, which is consistent with the analysis using unstratified national data.
+**Figure S3. Odds Ratio of Assay Positivity, Stratified by Province or Region.** We observed an increased odds of assay positivity in venous blood samples for both anti-N and anti-S assays, which is consistent with the analysis using unstratified national data.
