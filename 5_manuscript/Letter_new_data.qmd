@@ -24,14 +24,11 @@ Jiacheng Chen^1^, Steven J. Drews^2,3^, W. Alton Russell^1^,
 
 <br>
 
-^1^School of Population and Global Health, McGill University, Montreal, Canada
-<br>
+^1^School of Population and Global Health, McGill University, Montreal, Canada <br>
 
-^2^Microbiology, Donation Policy and Studies, Canadian Blood Services, Edmonton, Alberta, Canada
-<br>
+^2^Microbiology, Donation Policy and Studies, Canadian Blood Services, Edmonton, Alberta, Canada <br>
 
-^3^Department of Laboratory Medicine and Pathology, Division of Diagnostic and Applied Microbiology, University of Alberta, Edmonton, Alberta, Canada
-<br>
+^3^Department of Laboratory Medicine and Pathology, Division of Diagnostic and Applied Microbiology, University of Alberta, Edmonton, Alberta, Canada <br>
 
 ```{r setup, include=FALSE}
 library(ggplot2)            # plots
@@ -56,7 +53,7 @@ WriteBib(m1, file = "../5_manuscript/biball.bib")
 
 # Letter (403 / 500 Words)
 
-Participant-collected dried blood spots (DBS) are a convenient, minimally invasive alternative to phlebotomist-collected venous samples for population serological surveillance. Several SARS-CoV-2 serosurveillance studies collected DBS samples through the mail, reaching wider geographic areas and minimizing face-to-face contact during the pandemic [@Zava2021; @Mackett2022; @Meyers2021]. Prior studies characterize assay accuracy with DBS as 'reliable', based on their high sensitivity and specificity, in paired comparisons with venous samples [ @Meyers2021; @Simmonds2011; @Morley2020]. A recent study comparing SARS-CoV-2 IgG results from paired venous and DBS samples concluded performance was "comparable" [@Nikiforuk2022]. In a national SARS-CoV-2 serological study of older Canadians conducted by the Canadian Longitudinal Study on Aging [@Raina2019], participants chose whether to mail a DBS sample or provide a venous sample at a testing center. We analyzed these data to assess for systematic differences in assay findings between DBS and venous samples.
+Participant-collected dried blood spots (DBS) are a convenient, minimally invasive alternative to phlebotomist-collected venous samples for population serological surveillance. Several SARS-CoV-2 serosurveillance studies collected DBS samples through the mail, reaching wider geographic areas and minimizing face-to-face contact during the pandemic [@Zava2021; @Mackett2022; @Meyers2021]. Prior studies characterize assay accuracy with DBS as 'reliable', based on their high sensitivity and specificity, in paired comparisons with venous samples [@Meyers2021; @Simmonds2011; @Morley2020]. A recent study comparing SARS-CoV-2 IgG results from paired venous and DBS samples concluded performance was "comparable" [@Nikiforuk2022]. In a national SARS-CoV-2 serological study of older Canadians conducted by the Canadian Longitudinal Study on Aging [@Raina2019], participants chose whether to mail a DBS sample or provide a venous sample at a testing center. We analyzed these data to assess for systematic differences in assay findings between DBS and venous samples.
 
 ```{r, include=FALSE}
 # The sample size
@@ -193,7 +190,7 @@ summary(CLSA_com50.c6$SPIKE_ANTIBODY[CLSA_com50.c6$SER_SPIKE_COV==1 &
                                      CLSA_com50.c6$SER_ADM_COV==1])
 ```
 
-**Figure 2**: Empirical cumulative distribution function for the quantitative Anti-S level among participants who tested positive on the Anti-S assay. Venous samples tended to have higher Anti-S levels (mean: 300.54 AU/ml, median: 38.63 AU/ml) compared to DBS (mean: 105.75 AU/ml, median: 3.43 AU/ml). 
+**Figure 2**: Empirical cumulative distribution function for the quantitative Anti-S level among participants who tested positive on the Anti-S assay. Venous samples tended to have higher Anti-S levels (mean: 300.54 AU/ml, median: 38.63 AU/ml) compared to DBS (mean: 105.75 AU/ml, median: 3.43 AU/ml).
 
 {{< pagebreak >}}
 
