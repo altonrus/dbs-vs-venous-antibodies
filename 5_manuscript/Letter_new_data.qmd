@@ -1,5 +1,5 @@
 ---
-title: "Impact of dried blood spot sample collection on SARS-CoV-2 antibody test results in a serological study of older Canadians"
+title: "dried blood spot vs. venous sample collection on SARS-CoV-2 antibody test results in a serological study of older Canadians"
 execute: 
   echo: false
 format:
@@ -20,12 +20,17 @@ crossref:
   fig-title: "**Figure**"
 ---
 
-Jiacheng Chen^1^, W. Alton Russell^1^,
+Jiacheng Chen^1^, Steven J. Drews^2,3^, W. Alton Russell^1^,
 
 <br>
 
 ^1^School of Population and Global Health, McGill University, Montreal, Canada
+<br>
 
+^2^Microbiology, Donation Policy and Studies, Canadian Blood Services, Edmonton, Alberta, Canada
+<br>
+
+^3^Department of Laboratory Medicine and Pathology, Division of Diagnostic and Applied Microbiology, University of Alberta, Edmonton, Alberta, Canada
 <br>
 
 ```{r setup, include=FALSE}
@@ -49,9 +54,9 @@ m1<-merge(m1, bib3, fields.to.check = 'all')
 WriteBib(m1, file = "../5_manuscript/biball.bib")
 ```
 
-# Letter (384 / 500 Words)
+# Letter (403 / 500 Words)
 
-Participant-collected dried blood spots (DBS) are a convenient, minimally invasive alternative to phlebotomist-collected venous samples for population serological surveillance. Several SARS-CoV-2 serosurveillance studies collected DBS samples in the mail to reach wider geographic areas and minimize face-to-face contact during the pandemic [@Zava2021; @Meyers2021; @Mackett2022]. Prior studies characterized assay accuracy with DBS as 'reliable', based on their high sensitivity and specificity, which were derived from paired comparisons with venous samples [@Simmonds2011; @Meyers2021; @Morley2020]. A recent study comparing SARS-CoV-2 IgG results from paired venous and DBS samples concluded performance was "comparable" [@Nikiforuk2022]. In a national SARS-CoV-2 serological study of older Canadians conducted by the Canadian Longitudinal Study on Aging [@Raina2019], participants choose whether to mail a DBS sample or provide a venous sample at a testing center. We analyze these data to assess for systematic differences in assay findings between DBS and venous samples.
+Participant-collected dried blood spots (DBS) are a convenient, minimally invasive alternative to phlebotomist-collected venous samples for population serological surveillance. Several SARS-CoV-2 serosurveillance studies collected DBS samples through the mail, reaching wider geographic areas and minimizing face-to-face contact during the pandemic [@Zava2021; @Mackett2022; @Meyers2021]. Prior studies characterize assay accuracy with DBS as 'reliable', based on their high sensitivity and specificity, in paired comparisons with venous samples [ @Meyers2021; @Simmonds2011; @Morley2020]. A recent study comparing SARS-CoV-2 IgG results from paired venous and DBS samples concluded performance was "comparable" [@Nikiforuk2022]. In a national SARS-CoV-2 serological study of older Canadians conducted by the Canadian Longitudinal Study on Aging [@Raina2019], participants chose whether to mail a DBS sample or provide a venous sample at a testing center. We analyzed these data to assess for systematic differences in assay findings between DBS and venous samples.
 
 ```{r, include=FALSE}
 # The sample size
@@ -68,7 +73,7 @@ table(is.na(CLSA_com50$NUCLEOCAPSID_ANTIBODY))
 table(is.na(CLSA_com50$SPIKE_ANTIBODY))
 ```
 
-We developed a propensity model to examine the association of demographics, geography, and health-related factors with the choice of DBS or venous sample, and we compared SARS-CoV-2 Anti-N and Anti-S (7,230 assays each) results between participants who provided DBS (n = 3,773) or venous samples (n = 3,450; **Fig. S1**), using inverse probability of treatment weighting to adjust from potential confounding variables (details in **Supplemental Methods**).
+First, we developed a logistic regression propensity model to examine the association of demographics, geography, and health-related factors with the choice to provide a DBS or venous sample. Then, we compared SARS-CoV-2 Anti-N and Anti-S (7,230 assays each) results between participants who provided DBS (n = 3,773) or venous samples (n = 3,450; **Fig. S1**), using inverse probability of treatment weighting to adjust from potential confounding variables (details in **Supplemental Methods**).
 
 ```{r, include=FALSE}
 # "would have been" scenarios (la conditionel)
@@ -134,7 +139,7 @@ sum(CLSA_com50.c6$S.p.alld)/6174  # 43.74%
 sum(CLSA_com50.c6$S.p.allv)/6174  # 50.68%
 ```
 
-Participants who provided in-person venous samples were more likely to be male, white, unvaccinated, and living in an urban area (**Fig. 1**). Propensity weights achieved good balance. After weighting, venous samples were 223% more likely to be Anti-N positive (Odds ratio \[OR\]: 3.33, 95% confidence interval \[CI\]: 2.78--4.01) and 27% more likely to be Anti-S positive (OR: 1.27, 95% CI: 1.08--1.49). Among Anti-S antibody positive samples, the distribution of quantitative anti-S levels differed between DBS and venous samples (p \< 0.0001, Kolmogoriv-Smirnov test), with substantially higher in venous samples (**Fig. 2**). Province-level sub-analyses yielded consistent findings (**Fig. S3**). Compared to using venous samples, we estimate that DBS for all participants would have underestimated anti-N seropositivity by 69.3% (2.49% positive vs. 8.12%) and would have underestimated anti-S positivity by 13.7% (43.74% positive vs. 50.68%).
+Participants who provided in-person venous samples were more likely to be male, white, unvaccinated, and live in an urban area (**Fig. 1**). After balancing for 10 covariates via propensity score weighting, venous samples were 223% more likely to be Anti-N positive (Odds ratio \[OR\]: 3.33, 95% confidence interval \[CI\]: 2.78--4.01) and 27% more likely to be Anti-S positive (OR: 1.27, 95% CI: 1.08--1.49). Among Anti-S antibody positive samples, the distribution of quantitative anti-S levels was systematically lower for DBS samples (p \< 0.0001, Kolmogoriv-Smirnov test; **Fig. 2**). No DBS samples were above the assays upper limit of detection, compared to 8.43% of Anti-S positive venous. Province-level sub-analyses yielded consistent findings (**Fig. S3**). Compared to using venous samples, we estimate that DBS for all participants would have underestimated anti-N seropositivity by 69.3% (2.49% positive with DBS vs. 8.12% with venous) and would have underestimated anti-S positivity by 13.7% (43.74% vs. 50.68%).
 
 In contrast to earlier reports [@Meyers2021; @Zava2021; @Mackett2022; @Morley2020], we found substantial differences between SARS-CoV-2 serological findings in DBS and venous samples. While assay-specific in-house calibration may mitigate these differences [@Zava2021], more work is needed to understand how use of DBS samples impacts population serosurveillance estimates.
 
@@ -170,7 +175,7 @@ knitr::include_graphics("../4_output/figs/Fig.3 OR Plot.png")
 
 ```
 
-**Figure 1**: Odds ratios for providing an in-person venous sample instead of DBS using a multivariate logistic regression model ('adjusted') and univariate model ('unadjusted'). After applying inverse probability of treatment weighting ('weighted'), all odds ratios were insignificant.
+**Figure 1**: Odds ratios for providing an in-person venous sample instead of DBS using a multivariate logistic regression model ('adjusted') and univariate model ('unadjusted'). After applying inverse probability of treatment weighting ('weighted'), all odds ratios were insignificant, suggesting good balance.
 
 ```{r}
 knitr::include_graphics("../4_output/figs/Fig.1c Weighted eCDF Anti-S.png")
@@ -188,7 +193,7 @@ summary(CLSA_com50.c6$SPIKE_ANTIBODY[CLSA_com50.c6$SER_SPIKE_COV==1 &
                                      CLSA_com50.c6$SER_ADM_COV==1])
 ```
 
-**Figure 2**: Empirical cumulative distribution function for the quantitative Anti-S level among participants who tested positive on the Anti-S assay. Venous samples tended to have higher Anti-S levels (mean: 300.54 AU/ml, median: 38.63 AU/ml) compared to DBS (mean: 105.75 AU/ml, median: 3.43 AU/ml). 8.43% of venous samples were above the assay's upper limit of detection, compared to 0% of DBS.
+**Figure 2**: Empirical cumulative distribution function for the quantitative Anti-S level among participants who tested positive on the Anti-S assay. Venous samples tended to have higher Anti-S levels (mean: 300.54 AU/ml, median: 38.63 AU/ml) compared to DBS (mean: 105.75 AU/ml, median: 3.43 AU/ml). 
 
 {{< pagebreak >}}
 
