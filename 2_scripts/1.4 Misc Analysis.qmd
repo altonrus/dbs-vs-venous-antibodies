@@ -1,0 +1,152 @@
+---
+title: "1.4 Misc Analysis"
+format: html
+editor: visual
+---
+
+## Quarto
+
+Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+
+## Running Code
+
+The aim of this file is to
+1. used a simulated data to see if results from DBS samples are systematically underestimated when compared to venous samples, will that results in bad test performance (low sen & spec)?
+
+2. If the COI are the same, can we observe lower OR of test positivity among DBS samples?
+
+## Load Packages
+
+```{r}
+library(dplyr)         # Pak for data management
+library(WeightIt)
+```
+
+## 1. Simulated Data
+
+## Create simulate data
+```{r}
+# sample size = 2000
+set.seed(996116)
+ID<-1:2000
+pos_true<-c(rep("negative",1200), rep("positive",800))
+S_log<-c(rnorm(1200,mean=-0.6, sd=0.2),
+         rnorm(800, mean=0.6, sd=0.3))
+S_dbs=10^S_log
+S_vbs<-S_dbs*1.0276 + 0.1111
+
+pos_dbs<-if_else(S_dbs<=0.6, 0 , 1)
+pos_vbs<-if_else(S_vbs<=0.6, 0 , 1)
+
+table(pos_dbs, pos_vbs)
+table(pos_dbs, pos_true)
+table(pos_vbs, pos_true)
+```
+## Make a plot
+```{r}
+plot(ecdf(S_dbs),
+     xlim = range(0.4, S_vbs),
+     log='x',
+     xaxt = 'n',
+     col = "blue",
+     main='eCDF of Quant Anti-S Assay Results - Using Simulated Data',
+     xlab = 'Quant Anti-S Assay Results')
+plot(ecdf(S_vbs),
+     add = TRUE,
+     lwd=2,
+     lty = "dashed",
+     col = "red")
+axis(side=1, at=c(-0.4, 0, 1, 10, 100, 1000))
+legend("bottomright", legend = c("DBS", "Venous"),
+       lwd = 3, col = c("blue", "red"))
+```
+## 2. Same COI for Plasma (Venous) & DBS
+```{r}
+# Load data
+load(file='../1_data/private/CLSA_com50.RData')
+```
+
+#### Recreate Anti-N test results
+```{r}
+CLSA_com50$N_same_COI<-
+  if_else(CLSA_com50$NUCLEOCAPSID_ANTIBODY<0.103, 0,1)
+
+# Unadjusted analysis
+tab1<-table(CLSA_com50$N_same_COI, CLSA_com50$SER_NUCLEOCAPSID_COV, useNA = 'ifany')
+colnames(tab1)<-c("Neg_Origin.N", "Pos_Origin.N")
+rownames(tab1)<-c("Neg_same_COI.N", "Pos_same_COI.N")
+tab1
+
+lm09<-glm(N_same_COI~SER_ADM_COV, 
+          data = CLSA_com50, family = binomial(link='logit'))
+gtsummary::tbl_regression(lm09, exponentiate = TRUE)
+
+lm09.a<-glm(SER_NUCLEOCAPSID_COV~SER_ADM_COV, 
+          data = CLSA_com50, family = binomial(link='logit'))
+gtsummary::tbl_regression(lm09.a, exponentiate = TRUE)
+```
+```{r}
+# Adjusted analysis
+# create clean dataset .c6
+CLSA_com50.c6<-CLSA_com50 %>%
+  dplyr::select(SER_ADM_COV, AGE_NMBR_COVID , age10, SEX_CLSA ,
+            URBAN_RURAL_COVID, urban_rural,
+            SER_ETHN_WH_COV  ,
+            SER_EDU_COV ,
+            DEP_CESD10_COVX ,
+            dist_min , dist_min_km, dist_min_25km,
+            time_vac15,
+            PROV_5, outbreak, avgincidence_last7, avginc10_15d,
+            SER_NUCLEOCAPSID_COV, SER_SPIKE_COV, SPIKE_ANTIBODY, NUCLEOCAPSID_ANTIBODY,
+            N_same_COI)
+
+CLSA_com50.c6<-CLSA_com50.c6 %>% 
+  tidyr::drop_na()
+```
+
+```{r}
+# Add weights
+w.09 <- weightit(SER_ADM_COV~age10 + SEX_CLSA +
+                             urban_rural +
+                             SER_ETHN_WH_COV  +
+                             SER_EDU_COV +
+                             DEP_CESD10_COVX +
+                             dist_min_km +
+                             time_vac15 + outbreak, 
+            data=CLSA_com50.c6, estimand = 'ATE', method = 'glm')
+summary(w.09)
+CLSA_com50.c6$w.weights<-w.09$weights
+```
+
+```{r}
+# weighted analysis
+lm09.w<-glm(N_same_COI~SER_ADM_COV, 
+          data = CLSA_com50.c6, family = binomial(link='logit'),
+          weights = w.weights)
+gtsummary::tbl_regression(lm09.w, exponentiate = TRUE)
+```
+
+## 3. For quantitative anti-N who is higher: DBS
+
+## Ecdf for anti-N quantitative
+```{r}
+plot(ecdf(CLSA_com50$NUCLEOCAPSID_ANTIBODY[CLSA_com50$SER_ADM_COV==0]),
+     xlim = range(0.1, 100),
+     log='x',
+     xaxt = 'n',
+     col = "green",
+     main='eCDF of Quant Anti-N Assay Results - All',
+     xlab = 'Quant Anti-N Assay Results')
+plot(ecdf(CLSA_com50$NUCLEOCAPSID_ANTIBODY[CLSA_com50$SER_ADM_COV==1]),
+     add = TRUE,
+     lwd=2,
+     lty = "dashed",
+     col = "orange")
+axis(side=1, at=c(0.001, 0.1, 1, 10, 100))
+legend("bottomright", legend = c("DBS", "VBS"),
+       lwd = 3, col = c("green", "orange"))
+
+# This might be counter intuitive, since we've found higher risk of anti-N assay positive among venous samples.  
+```
+
+
