@@ -12,6 +12,8 @@ Quarto enables you to weave together content and executable code into a finished
 
 The aim of this file is to redo the analysis (propensity score weighting) in 1.3, as it suggested by Jane, Amber and Mogan during the meeting on 30 Oct 2023.
 
+Also, at the end of those markdown file we added some experimental parts, those parts should not be published.
+
 ## Load Packages
 
 ```{r}
@@ -595,3 +597,70 @@ g6ns +   scale_color_brewer(palette="Set1") +                  # Set Colour
          # ggtitle("OR of Assay Posivitity, Stratified by Province Groups")
 dev.off()
 ```
+
+
+## ==================== Part III. Experimental Analysis =================##
+
+## 3.1 Use linear model from Mulchandani 2021 to adjust for quant anti-s (Roche)
+```{r}
+# Source of the model:https://www.mdpi.com/1999-4915/13/6/962
+# Formula: DBS = 0.623 + 0.0744*Plasma
+
+# create a subset for future analysis
+CLSAs<-select(CLSA_com50, entity_id, SER_ADM_COV,
+              NUCLEOCAPSID_ANTIBODY, SER_NUCLEOCAPSID_COV,
+              SPIKE_ANTIBODY, SER_SPIKE_COV)
+
+# anti-S positivity
+table(CLSAs$SER_SPIKE_COV, useNA = 'ifany')
+# "1" means anti-S positive
+
+CLSAs$s_dbs_hat<- CLSAs$SPIKE_ANTIBODY*0.0744 + 0.623
+CLSAs$s_dbs_hat[CLSAs$SER_ADM_COV==0]<-NA
+```
+
+```{r}
+# Make plots
+plot(stats::ecdf(CLSAs$SPIKE_ANTIBODY[CLSAs$SER_ADM_COV==0 & 
+                                      CLSAs$SER_SPIKE_COV==1]),
+     xlim = c(0.4,2500),
+     log='x',
+     xaxt = 'n',
+     col = "blue",
+     main='eCDF of Quant Anti-S Assay Results',
+     xlab = 'Quant Anti-S Assay Results')
+plot(stats::ecdf(CLSAs$s_dbs_hat[CLSAs$SER_ADM_COV==1 & 
+                                 CLSAs$SER_SPIKE_COV==1]),
+     add = TRUE,
+     lwd=2,
+     lty = "dashed",
+     col = "brown")
+plot(stats::ecdf(CLSAs$SPIKE_ANTIBODY[CLSAs$SER_ADM_COV==1 & 
+                                      CLSAs$SER_SPIKE_COV==1]),
+     add = TRUE,
+     lwd=2,
+     lty = "dashed",
+     col = "red")
+axis(side=1, at=c(-0.4, 0, 1, 10, 100, 1000))
+legend("bottomright", legend = c("DBS", "DBS_hat", "Venous"),
+       lwd = 3, col = c("blue", "brown", "red"))
+
+
+# K.S test showed sig diff
+ks.test(CLSAs$SPIKE_ANTIBODY[CLSAs$SER_ADM_COV==0 & 
+                             CLSAs$SER_SPIKE_COV==1],
+        CLSAs$s_dbs_hat[CLSAs$SER_ADM_COV==1 & 
+                        CLSAs$SER_SPIKE_COV==1],
+        alternative = "two.sided")
+
+# remove those beyond range of detection:
+ks.test(CLSAs$SPIKE_ANTIBODY[CLSAs$SER_ADM_COV==0 & 
+                             CLSAs$SER_SPIKE_COV==1 &
+                             CLSAs$SPIKE_ANTIBODY<186.623],
+        CLSAs$s_dbs_hat[CLSAs$SER_ADM_COV==1 & 
+                        CLSAs$SER_SPIKE_COV==1 &
+                        CLSAs$s_dbs_hat<186.623],
+        alternative = "two.sided")
+```
+
+

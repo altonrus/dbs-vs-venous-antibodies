@@ -149,4 +149,3 @@ legend("bottomright", legend = c("DBS", "VBS"),
 # This might be counter intuitive, since we've found higher risk of anti-N assay positive among venous samples.  
 ```
 
-
