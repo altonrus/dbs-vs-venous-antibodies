@@ -615,8 +615,14 @@ CLSAs<-select(CLSA_com50, entity_id, SER_ADM_COV,
 table(CLSAs$SER_SPIKE_COV, useNA = 'ifany')
 # "1" means anti-S positive
 
+# Apply the model to adjust VBS values
 CLSAs$s_dbs_hat<- CLSAs$SPIKE_ANTIBODY*0.0744 + 0.623
 CLSAs$s_dbs_hat[CLSAs$SER_ADM_COV==0]<-NA
+
+# Also we can adjust DBS values, this makes more senses
+# Apply the model to adjust VBS values
+CLSAs$s_dbs_adj<- CLSAs$SPIKE_ANTIBODY*13.4409 - 8.3737
+CLSAs$s_dbs_adj[CLSAs$SER_ADM_COV==1]<-NA
 ```
 
 ```{r}
@@ -629,7 +635,7 @@ plot(stats::ecdf(CLSAs$SPIKE_ANTIBODY[CLSAs$SER_ADM_COV==0 &
      col = "blue",
      main='eCDF of Quant Anti-S Assay Results',
      xlab = 'Quant Anti-S Assay Results')
-plot(stats::ecdf(CLSAs$s_dbs_hat[CLSAs$SER_ADM_COV==1 & 
+plot(stats::ecdf(CLSAs$s_dbs_adj[CLSAs$SER_ADM_COV==0 & 
                                  CLSAs$SER_SPIKE_COV==1]),
      add = TRUE,
      lwd=2,
@@ -642,25 +648,53 @@ plot(stats::ecdf(CLSAs$SPIKE_ANTIBODY[CLSAs$SER_ADM_COV==1 &
      lty = "dashed",
      col = "red")
 axis(side=1, at=c(-0.4, 0, 1, 10, 100, 1000))
-legend("bottomright", legend = c("DBS", "DBS_hat", "Venous"),
+legend("bottomright", legend = c("DBS", "DBS_adj", "Venous"),
        lwd = 3, col = c("blue", "brown", "red"))
 
+```
 
-# K.S test showed sig diff
-ks.test(CLSAs$SPIKE_ANTIBODY[CLSAs$SER_ADM_COV==0 & 
+#### K.S test (preferred) and t-test comparing DBS_adj and venous
+```{r}
+# K.S test showed sig diff bw adjusted DBS (brown) and venous
+ks.test(CLSAs$SPIKE_ANTIBODY[CLSAs$SER_ADM_COV==1 & 
                              CLSAs$SER_SPIKE_COV==1],
-        CLSAs$s_dbs_hat[CLSAs$SER_ADM_COV==1 & 
+        CLSAs$s_dbs_adj[CLSAs$SER_ADM_COV==0 & 
                         CLSAs$SER_SPIKE_COV==1],
         alternative = "two.sided")
 
-# remove those beyond range of detection:
-ks.test(CLSAs$SPIKE_ANTIBODY[CLSAs$SER_ADM_COV==0 & 
+# remove those beyond range of detection (>1600 & <0):
+ks.test(CLSAs$SPIKE_ANTIBODY[CLSAs$SER_ADM_COV==1 & 
                              CLSAs$SER_SPIKE_COV==1 &
-                             CLSAs$SPIKE_ANTIBODY<186.623],
-        CLSAs$s_dbs_hat[CLSAs$SER_ADM_COV==1 & 
+                             CLSAs$SPIKE_ANTIBODY<1600],
+        CLSAs$s_dbs_adj[CLSAs$SER_ADM_COV==0 & 
                         CLSAs$SER_SPIKE_COV==1 &
-                        CLSAs$s_dbs_hat<186.623],
+                        CLSAs$s_dbs_adj>0],
         alternative = "two.sided")
+# p-values from two tests above are small (<.001)
+
+# student t-test for log10 transformed:
+var.test(log10(CLSAs$SPIKE_ANTIBODY[CLSAs$SER_ADM_COV==1 & 
+                             CLSAs$SER_SPIKE_COV==1]),
+         log10(CLSAs$s_dbs_adj[CLSAs$SER_ADM_COV==0 & 
+                        CLSAs$SER_SPIKE_COV==1])
+        ) #var equal = T
+
+ t.test(log10(CLSAs$SPIKE_ANTIBODY[CLSAs$SER_ADM_COV==1 & 
+                             CLSAs$SER_SPIKE_COV==1]),
+        log10(CLSAs$s_dbs_adj[CLSAs$SER_ADM_COV==0 & 
+                        CLSAs$SER_SPIKE_COV==1]),
+        alternative = "two.sided", var.equal = TRUE)
+ 
+# student t-test, but remove out-of-range values
+ t.test(log10(CLSAs$SPIKE_ANTIBODY[CLSAs$SER_ADM_COV==1 & 
+                                   CLSAs$SER_SPIKE_COV==1 &
+                                   CLSAs$SPIKE_ANTIBODY<1600]),
+        log10(CLSAs$s_dbs_adj[CLSAs$SER_ADM_COV==0 & 
+                              CLSAs$SER_SPIKE_COV==1 &
+                              CLSAs$s_dbs_adj>0]),
+        alternative = "two.sided", var.equal = TRUE)
+# p-value of those t-tests <0.05
 ```
+
 
 
