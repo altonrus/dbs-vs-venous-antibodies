@@ -598,17 +598,17 @@ g6ns +   scale_color_brewer(palette="Set1") +                  # Set Colour
 dev.off()
 ```
 
-
-## ==================== Part III. Experimental Analysis =================##
+## ==================== Part III. Experimental Analysis =================
 
 ## 3.1 Use linear model from Mulchandani 2021 to adjust for quant anti-s (Roche)
+## We decided to add the DBS_adjusted into the figure
+
 ```{r}
 # Source of the model:https://www.mdpi.com/1999-4915/13/6/962
 # Formula: DBS = 0.623 + 0.0744*Plasma
 
 # create a subset for future analysis
-CLSAs<-select(CLSA_com50, entity_id, SER_ADM_COV,
-              NUCLEOCAPSID_ANTIBODY, SER_NUCLEOCAPSID_COV,
+CLSAs<-select(CLSA_com50.c6, SER_ADM_COV,
               SPIKE_ANTIBODY, SER_SPIKE_COV)
 
 # anti-S positivity
@@ -616,8 +616,8 @@ table(CLSAs$SER_SPIKE_COV, useNA = 'ifany')
 # "1" means anti-S positive
 
 # Apply the model to adjust VBS values
-CLSAs$s_dbs_hat<- CLSAs$SPIKE_ANTIBODY*0.0744 + 0.623
-CLSAs$s_dbs_hat[CLSAs$SER_ADM_COV==0]<-NA
+# CLSAs$s_dbs_hat<- CLSAs$SPIKE_ANTIBODY*0.0744 + 0.623
+# CLSAs$s_dbs_hat[CLSAs$SER_ADM_COV==0]<-NA
 
 # Also we can adjust DBS values, this makes more senses
 # Apply the model to adjust VBS values
@@ -627,14 +627,19 @@ CLSAs$s_dbs_adj[CLSAs$SER_ADM_COV==1]<-NA
 
 ```{r}
 # Make plots
+png(file="~/dbs-vs-venous-antibodies/3_intermediate/Fig.1c Weighted eCDF Anti-S.png", 
+    width=1600, height=1200, res=300)
 plot(stats::ecdf(CLSAs$SPIKE_ANTIBODY[CLSAs$SER_ADM_COV==0 & 
                                       CLSAs$SER_SPIKE_COV==1]),
-     xlim = c(0.4,2500),
+     xlim = c(0.1,4000),
      log='x',
      xaxt = 'n',
      col = "blue",
-     main='eCDF of Quant Anti-S Assay Results',
-     xlab = 'Quant Anti-S Assay Results')
+     main=' ',
+     xlab = 'Quant Anti-S Assay Results (U/ml, log scale)',
+     ylab = 'Cumulative proportion')
+abline(v=0.4, col="red", lty = "dotted", lwd = 2)
+abline(v=2500, col="red", lty = "dotted", lwd = 2)
 plot(stats::ecdf(CLSAs$s_dbs_adj[CLSAs$SER_ADM_COV==0 & 
                                  CLSAs$SER_SPIKE_COV==1]),
      add = TRUE,
@@ -648,12 +653,14 @@ plot(stats::ecdf(CLSAs$SPIKE_ANTIBODY[CLSAs$SER_ADM_COV==1 &
      lty = "dashed",
      col = "red")
 axis(side=1, at=c(-0.4, 0, 1, 10, 100, 1000))
-legend("bottomright", legend = c("DBS", "DBS_adj", "Venous"),
+legend("bottomright", legend = c("DBS", "DBS_adjusted", "Venous"),
        lwd = 3, col = c("blue", "brown", "red"))
-
+dev.off()
 ```
 
+
 #### K.S test (preferred) and t-test comparing DBS_adj and venous
+
 ```{r}
 # K.S test showed sig diff bw adjusted DBS (brown) and venous
 ks.test(CLSAs$SPIKE_ANTIBODY[CLSAs$SER_ADM_COV==1 & 
@@ -665,12 +672,15 @@ ks.test(CLSAs$SPIKE_ANTIBODY[CLSAs$SER_ADM_COV==1 &
 # remove those beyond range of detection (>1600 & <0):
 ks.test(CLSAs$SPIKE_ANTIBODY[CLSAs$SER_ADM_COV==1 & 
                              CLSAs$SER_SPIKE_COV==1 &
-                             CLSAs$SPIKE_ANTIBODY<1600],
+                             CLSAs$SPIKE_ANTIBODY<2500],
         CLSAs$s_dbs_adj[CLSAs$SER_ADM_COV==0 & 
                         CLSAs$SER_SPIKE_COV==1 &
+                        CLSAs$s_dbs_adj<2500 &
                         CLSAs$s_dbs_adj>0],
         alternative = "two.sided")
-# p-values from two tests above are small (<.001)
+# After removing the out-of-range values (>2500, <0), the distribution of DBS_adj and venous is not significant different (P=0.1661). 
+
+# This is unweighhted K.S test, should do weighted K.S test using ks_test() in {Ecume} pak.
 
 # student t-test for log10 transformed:
 var.test(log10(CLSAs$SPIKE_ANTIBODY[CLSAs$SER_ADM_COV==1 & 
@@ -688,13 +698,11 @@ var.test(log10(CLSAs$SPIKE_ANTIBODY[CLSAs$SER_ADM_COV==1 &
 # student t-test, but remove out-of-range values
  t.test(log10(CLSAs$SPIKE_ANTIBODY[CLSAs$SER_ADM_COV==1 & 
                                    CLSAs$SER_SPIKE_COV==1 &
-                                   CLSAs$SPIKE_ANTIBODY<1600]),
+                                   CLSAs$SPIKE_ANTIBODY<2500]),
         log10(CLSAs$s_dbs_adj[CLSAs$SER_ADM_COV==0 & 
                               CLSAs$SER_SPIKE_COV==1 &
-                              CLSAs$s_dbs_adj>0]),
+                              CLSAs$s_dbs_adj>0 &
+                              CLSAs$s_dbs_adj<2500]),
         alternative = "two.sided", var.equal = TRUE)
 # p-value of those t-tests <0.05
 ```
-
-
-
