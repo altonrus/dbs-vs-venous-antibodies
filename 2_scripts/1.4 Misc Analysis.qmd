@@ -20,6 +20,8 @@ The aim of this file is to
 ```{r}
 library(dplyr)         # Pak for data management
 library(WeightIt)
+library(zoo)           # as.Date and month
+library(ggplot2)       # for heatmap
 ```
 
 ## 1. Simulated Data
@@ -147,5 +149,50 @@ legend("bottomright", legend = c("DBS", "VBS"),
        lwd = 3, col = c("green", "orange"))
 
 # This might be counter intuitive, since we've found higher risk of anti-N assay positive among venous samples.  
+```
+
+## A heatmap indicating the number of samples we have in each month
+**Notes:** We are going to add this figure into the supplement section. We have two time stamps variables, the time when they did the questionnaire (start_date_COV) amd the time they went to DCS. For now we will go ahead with the questionnaire date but we need to confirm this with Jennifer.
+
+General design: x-axis is time and align figures vertically so we can make comparison among all five regions:
+```{r}
+# five regions
+table(CLSA_com50.c6$PROV_5, useNA = 'ifany')
+attributes(CLSA_com50$PROV_5)
+
+# Sampling time: start_datetime_COV
+summary(CLSA_com50$start_datetime_COV)
+table(is.na(CLSA_com50$start_datetime_COV), useNA='ifany')
+# 2020/10/29 - 2021/08/18
+```
+#### Pre-process the CLSA data
+```{r}
+# add samplemonth var
+CLSA_com50$samplemonth<-as.yearmon(CLSA_com50$start_datetime_COV)
+
+tb1<-CLSA_com50 %>%
+  group_by(samplemonth, PROV_5, SER_ADM_COV, .add=TRUE) %>%
+  summarise(n = n(), )
+```
+
+#### Heatmap
+```{r}
+# creating the heatmap
+hmap01<-ggplot(data = tb1[!is.na(tb1$samplemonth),], mapping = aes(x = samplemonth,
+                                         y = PROV_5, fill = n)) +
+  geom_tile() +
+#  scale_x_date(limits = c(as.yearmon("2020-09-01"), as.yearmon("2021-09-01"))) +
+  xlab(label = "Date of Sample Collection") +
+  ylab(label = "Regions") +
+  theme_bw() + 
+  scale_fill_gradient(name = "Num. of Samples",
+                      low = "#FFFFFF",
+                      high = "red")
+
+png(file="../3_intermediate/Fig.6 Heatmap.png", 
+    width=2400, height=1440, res=300)
+hmap01 + facet_wrap(~SER_ADM_COV, nrow = 2,
+                    labeller = "label_both")
+dev.off()
 ```
 

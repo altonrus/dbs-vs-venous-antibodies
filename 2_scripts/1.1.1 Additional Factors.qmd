@@ -407,6 +407,7 @@ CLSA_com50<-merge(CLSA_com50, select(CLSA_Time, entity_id, start_datetime_COV),
       by = 'entity_id', all.x=T, all.y = F)
 
 summary(CLSA_com50$start_datetime_COV)
+table(is.na(CLSA_com50$start_datetime_COV), useNA='ifany')
 # 2020/10/29 - 2021/08/18
 
 # Period when >50 7-day-ave daily new cases (WHO)
