@@ -196,3 +196,32 @@ hmap01 + facet_wrap(~SER_ADM_COV, nrow = 2,
 dev.off()
 ```
 
+```{r}
+# code DBS n as minus
+tb1$n[tb1$SER_ADM_COV==0]= -1*tb1$n[tb1$SER_ADM_COV==0]
+
+# Heatmap 02 - Heatmap, DBS (blue) over venous (red), by regions
+hmap02<-ggplot(data = tb1[!is.na(tb1$samplemonth),],
+               mapping = aes(x = samplemonth,
+                             y = SER_ADM_COV, fill = n)) +
+  geom_tile() +
+  xlab(label = "Date of Sample Collection") +
+  ylab(label = "") +
+  theme_bw() + 
+  scale_fill_gradient2(name = "Num. of Samples",
+                      low = "blue", mid = "white", high = "red",
+                      breaks=c(-400,-200,0,200,400),
+                      labels=c("400-DBS","200",0,"200","400-Venous"),
+                      limits=c(-400,400)) +
+  theme(axis.text.y =element_blank(),
+        axis.ticks.y=element_blank(),
+        panel.background = element_rect(fill ="lightgrey"))
+
+
+
+png(file="../3_intermediate/Fig.6 Heatmap.png", 
+    width=2400, height=1440, res=300)
+hmap02 +  facet_wrap(~PROV_5, nrow = 5)
+dev.off()
+```
+

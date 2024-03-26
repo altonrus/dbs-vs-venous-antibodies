@@ -1,5 +1,5 @@
 ---
-title: "dried blood spot vs. venous sample collection on SARS-CoV-2 antibody test results in a serological study of older Canadians"
+title: "dried blood spot vs. venous sample collection on SARS-CoV-2 antibody test results in the CLSA serological study of older Canadians"
 execute: 
   echo: false
 format:
@@ -198,18 +198,26 @@ knitr::include_graphics("../4_output/figs/Fig.1c Weighted eCDF Anti-S.png")
 ```
 
 ```{r, include=FALSE}
-# Calculate mean vs median in CLSA data (use complete case data)
+# Calculate median and IQR in CLSA data (use complete case data CLSA_com50.c6)
+# Load a cleaned version of complete data: CLSAs
+load(file="../1_data/private/CLSAs.RData")
 
 # DBS
 summary(CLSA_com50.c6$SPIKE_ANTIBODY[CLSA_com50.c6$SER_SPIKE_COV==1 &
+                                     CLSA_com50.c6$SER_ADM_COV==0])
+IQR(CLSA_com50.c6$SPIKE_ANTIBODY[CLSA_com50.c6$SER_SPIKE_COV==1 &
                                      CLSA_com50.c6$SER_ADM_COV==0])
 
 # VBS
 summary(CLSA_com50.c6$SPIKE_ANTIBODY[CLSA_com50.c6$SER_SPIKE_COV==1 &
                                      CLSA_com50.c6$SER_ADM_COV==1])
+IQR(CLSA_com50.c6$SPIKE_ANTIBODY[CLSA_com50.c6$SER_SPIKE_COV==1 &
+                                     CLSA_com50.c6$SER_ADM_COV==1])
 
 # DBS_adjusted
 summary(CLSAs$s_dbs_adj[CLSAs$SER_ADM_COV==0 & 
+                        CLSAs$SER_SPIKE_COV==1])
+IQR(CLSAs$s_dbs_adj[CLSAs$SER_ADM_COV==0 & 
                         CLSAs$SER_SPIKE_COV==1])
 ```
 
@@ -247,7 +255,13 @@ In our analysis, we utilized data exclusively from the comprehensive cohort of t
 
 **Propensity score weighting:** Upon completion of the full model, we constructed a best-fit model utilizing a backward stepwise model selection strategy. The model with lowest Akaike Information Criterion (AIC) value was selected as the best-fit model. Subsequently, we applied this best-fit model to calculate propensity scores for the selection of VBS over DBS. Participants from both groups were weighteded based on their propensity scores using inverse probability of treatment weighting (IPTW). IPTW achieved good balance between the DBS and VBS groups, illustrated by the fact that the odds ratios in the model are all not significant after applying the weights.
 
-**Analysis with Weighted Data：** Utilizing weighted data, we further analyzed the differences in assay positivity between the DBS and VBS cohorts. The outcomes of the stratified analysis (**Fig. S3**) aligned with those from the unstratified national dataset. To analyze the variation in quantitative Anti-S immunoassay results, we employed the weighted empirical cumulative distribution function (eCDF) to visualize the distribution in the DBS and VBS cohorts (**Fig. 2**). We used Kolmogorov-Smirnov (KS) Test to assess whether the distributions are statistically-significantly different. \[Here add more about the brown line\]
+**Analysis with Weighted Data：** Utilizing weighted data, we further analyzed the differences in assay positivity between the DBS and VBS cohorts. The outcomes of the stratified analysis (**Fig. S3**) aligned with those from the unstratified national dataset. To analyze the variation in quantitative Anti-S immunoassay results, we employed the weighted empirical cumulative distribution function (eCDF) to visualize the distribution in the DBS and VBS cohorts (**Fig. 2**). We used Kolmogorov-Smirnov (KS) Test to assess whether the distributions are statistically-significantly different.
+
+$$
+DBS_{adjusted} = - 8.3737 + 13.4409DBS
+$$
+
+A previous study discovered a linear relationship between the quantitative Anti-S assay results performed on DBS and venous samples [@Brinc2021]. The linear relation is quantified and expressed using the equation above. We applied the same equation to the quantitative Anti-S assay results performed on DBS samples, then presented the distribution of adjusted assay results in the same eCDF figure (**Fig. 2**).
 
 **Sub-analyses:** Based on the national data, we conducted a stratified analysis by province. Our study sample included participants from seven provinces, which were recategorized into five groups according to their locations and geographic proximities: British Columbia (BC), Manitoba (MB) & Alberta (AB), Ontario (ON), Quebec (QC), and Newfoundland (NL) & Nova Scotia (NS). The pandemic's impact varied across these regions, with residents adapting differently to the diverse policies implemented by their respective health departments [@Adeyinka2022; @Hale2021]. **Figure S2** illustrates the variation in odds ratios for the preference of venous blood sampling across provinces.
 
@@ -272,3 +286,9 @@ knitr::include_graphics("../4_output/figs/Fig.5 OR Plot of Anti-N & S by prov.pn
 ```
 
 **Figure S3. Odds Ratio of Assay Positivity, Stratified by Province or Region.** We observed an increased odds of assay positivity in venous blood samples for both anti-N and anti-S assays, which is consistent with the analysis using unstratified national data.
+
+```{r}
+knitr::include_graphics("../3_intermediate/Fig.6 Heatmap.png")
+```
+
+**Figure S4** Add caption here
