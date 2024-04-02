@@ -587,7 +587,7 @@ g6ns<-ggplot(OR_NS, aes(x = OR, y = group)) +
           axis.title.y = element_blank(),
           plot.caption = element_text(hjust = 0)
           ) +
-  labs(x = "Odds ratio (>1 indicates positive association with assay positivity)")
+  labs(x = "Odds ratio (>1 indicates venous samples are more likely to be positive)")
 
 # Add stripes
 png(file="~/dbs-vs-venous-antibodies/3_intermediate/Fig.5 OR Plot of Anti-N & S by prov.png", 
@@ -596,11 +596,14 @@ g6ns +   scale_color_brewer(palette="Set1") +                  # Set Colour
          coord_cartesian(xlim =c(0, 6.5))      # Not removing the data, see the tail
          # ggtitle("OR of Assay Posivitity, Stratified by Province Groups")
 dev.off()
+
+rm(OR_NS, g6ns)
 ```
 
 ## ==================== Part III. Experimental Analysis =================
 
 ## 3.1 Use linear model from Mulchandani 2021 to adjust for quant anti-s (Roche)
+
 ## We decided to add the DBS_adjusted into the figure
 
 ```{r}
@@ -644,20 +647,19 @@ plot(stats::ecdf(CLSAs$s_dbs_adj[CLSAs$SER_ADM_COV==0 &
                                  CLSAs$SER_SPIKE_COV==1]),
      add = TRUE,
      lwd=2,
-     lty = "dashed",
-     col = "brown")
+     lty = "dotted",
+     col = "purple")
 plot(stats::ecdf(CLSAs$SPIKE_ANTIBODY[CLSAs$SER_ADM_COV==1 & 
                                       CLSAs$SER_SPIKE_COV==1]),
      add = TRUE,
      lwd=2,
-     lty = "dashed",
+     lty = "dotted",
      col = "red")
 axis(side=1, at=c(-0.4, 0, 1, 10, 100, 1000))
-legend("bottomright", legend = c("DBS", "DBS_adjusted", "Venous"),
-       lwd = 3, col = c("blue", "brown", "red"))
+legend("bottomright", legend = c("DBS", "DBS (adjusted)", "Venous"),
+       lwd = 3, col = c("blue", "purple", "red"))
 dev.off()
 ```
-
 
 #### K.S test (preferred) and t-test comparing DBS_adj and venous
 
