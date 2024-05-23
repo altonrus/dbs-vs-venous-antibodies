@@ -283,4 +283,24 @@ cowplot::plot_grid(p01, hmap02+  facet_wrap(~PROV_5, nrow = 5),
                    ncol = 1, nrow = 2)
 dev.off()
 ```
+## 4. Potential Data Quality Concerns
+
+**Notes:** Our concerns: We found a discrepancy: Among venous plasma samples with negative test results, the anti-N S/Co ratio can reach as high as 0.24, which exceeds the COI applied  (0.103).So we wonder if the COI for venous plasma samples has also changed like COIs applied to DBS samples?
+
+```{r}
+# Reload the CLSA_mn: This is the merged CLSA data with quant anti-N/S results. Based on this version of dataset we applied inclu/exclusion criteria (comprehensive cohort and <=50 km) and got our final dataset (CLSA_com50) for analysis.
+
+load("~/dbs-vs-venous-antibodies/1_data/private/CLSA_mn.RData")
+```
+
+```{r}
+# SER_ADM_COV: 2=DBS, 1=Venous
+# SER_NUCLEOCAPSID_COV, 0=neg, 1=pos
+
+# Use the code below to identify N=18 discrepancies, who are anti-N negative but has anti-N assay results above the COI applied for venous HP (0.103). Those discrepancies are only found within the anti-N negative venous group.
+CLSA_mn %>%
+  .[.$SER_ADM_COV==1 & .$SER_NUCLEOCAPSID_COV==0,] %>%
+  .[.$NUCLEOCAPSID_ANTIBODY>=0.103,] %>%
+  select(entity_id, NUCLEOCAPSID_ANTIBODY, SPIKE_ANTIBODY, SER_SPIKE_COV)
+```
 
