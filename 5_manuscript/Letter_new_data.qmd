@@ -37,6 +37,8 @@ library(data.table)         # for using datatables instead of frames
 library(scales)             # formatting plot legends and text
 library(readxl)             # read.excel
 library(flextable)          # generating tables
+library(cowplot)            # merging plots
+library(magick)            # merging plots
 ```
 
 ```{r, include=FALSE}
@@ -273,10 +275,10 @@ A previous study discovered a linear relationship between the quantitative Anti-
 knitr::include_graphics("../4_output/figs/Fig 7. CLSA Data Collection.jpg")
 ```
 
-**Figure S1: CLSA COVID-19 Study Sampling Process.** Reproduced from <https://www.clsa-elcv.ca/doc/2429>
+**Figure S1: CLSA COVID-19 Study Sampling Process.** Reproduced from <https://www.clsa-elcv.ca/doc/5698>
 
 ```{r}
-knitr::include_graphics("../4_output/figs/Fig.4 OR Plot by prov.png")
+knitr::include_graphics("../4_output/figs/Figure S1 Panel.png")
 ```
 
 **Figure S2. Odds Ratio of Venous Blood Sampling, Stratified by Province or Region.** The odds ratios for venous blood sampling vary among the five provincial groups. We observed significant differences in sampling method preferences across provinces. Compared to British Columbia (BC), participants in Ontario (ON) and Quebec (QC) preferred in-person venous sampling. In the Atlantic provinces, however, there was a preference for at-home DBS sampling over the venous sampling approach.

@@ -265,17 +265,25 @@ legend("topright", legend = c("DBS", "Venous"),
 
 ```{r}
 # use ggplot for the plotting:
-p01<-ggplot(tb3, aes(samplemonth, n, colour = factor(SER_ADM_COV))) + 
-  geom_point(aes(colour = factor(SER_ADM_COV)), size = 3) + 
-  geom_line(aes(colour = factor(SER_ADM_COV)), size=1) + 
+
+# First we modify data and make DBS negative (under x axis)
+tb3$n.neg<-tb3$n*(-1)
+tb3$n[tb3$SER_ADM_COV==0]<-tb3$n.neg[tb3$SER_ADM_COV==0]
+
+p01<-ggplot(tb3, aes(samplemonth, n, fill = factor(SER_ADM_COV))) + 
+  geom_bar(position = "stack", stat = 'identity')+
   labs(title = "Sampling Frequency",
        x="Date of Sample Collection", y="Num. of Samples",
        color = "") +
-  scale_color_manual(labels = c("DBS", "Venous"), values=c("blue", "red")) +
+  scale_fill_manual("", labels = c("DBS", "Venous"), values=c("blue", "red")) +
+  scale_y_continuous(breaks = seq(-1000, 500, by = 500), 
+                     label = c("1000", "500","0","500"))+
   theme_bw() 
 
+p01
+
 # Print all plots panelled
-png(file="../3_intermediate/Fig.S5 Heatmap and Freq.png", 
+png(file="../4_output/figs/Fig.S5 Heatmap and Freq.png", 
     width=2400, height=2400, res=300)
 cowplot::plot_grid(p01, hmap02+  facet_wrap(~PROV_5, nrow = 5), 
                    rel_heights = c(1,2), align = "hv",
@@ -303,4 +311,29 @@ CLSA_mn %>%
   .[.$NUCLEOCAPSID_ANTIBODY>=0.103,] %>%
   select(entity_id, NUCLEOCAPSID_ANTIBODY, SPIKE_ANTIBODY, SER_SPIKE_COV)
 ```
+We got some replies from the CLSA data group, who confirmed that those 18 cases are caused by data entry error and they should have been categorized into DBS group. A updated ver of CLSA data will be share with the data team soon.
 
+## Some code for testing purposes
+
+The purpose of those code is to figure of where the problem is that causing the server lag problems. The problem emerged when cleaning the APL data.
+
+```{r}
+# Load a random data for DBS vs Venous project:
+load("~/dbs-vs-venous-antibodies/1_data/private/CLSA_Alberta_PSM.RData")
+View(CLSA_mAB)
+
+# run a simple model building using the data
+lm10.t<-glm(SER_SPIKE_COV~SER_ADM_COV, 
+          data = CLSA_mAB)
+gtsummary::tbl_regression(lm10.t, exponentiate = TRUE)
+
+rm(lm10.t)
+
+# Load the APL data when the problem happens:
+load("~/COVID-assay-adjust-methods/1_data/private/RFD4682e.RData")
+load("~/COVID-assay-adjust-methods/1_data/private/RFD4682e1.RData")
+
+rm(RFD4682_e)
+rm(RFD4682_e1)
+```
+## 5. Making plots for the 
