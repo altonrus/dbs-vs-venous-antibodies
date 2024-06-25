@@ -96,7 +96,7 @@ lm10.N<-glm(SER_NUCLEOCAPSID_COV~SER_ADM_COV+age10 + SEX_CLSA +
                              SER_EDU_COV +
                              DEP_CESD10_COVX +
                              dist_min_25km +
-                             time_vac15 + avginc10_15d, 
+                             time_vac15 + time_3cat, 
     data = CLSA_com50.c6, family = binomial(link = "logit"))
 
 # add predicted value
@@ -114,8 +114,8 @@ CLSA_com50.c6.VBS$SER_ADM_COV<-rep(1, 6174)
 CLSA_com50.c6$N.p.alld<-predict(lm10.N, type = 'response', newdata = CLSA_com50.c6.DBS)
 CLSA_com50.c6$N.p.allv<-predict(lm10.N, type = 'response', newdata = CLSA_com50.c6.VBS)
 
-sum(CLSA_com50.c6$N.p.alld)/6174  #153.9132
-sum(CLSA_com50.c6$N.p.allv)/6174  #501.234
+sum(CLSA_com50.c6$N.p.alld)/6174  #151.2201
+sum(CLSA_com50.c6$N.p.allv)/6174  #510.5808
 
 # Now do the same for anti-S
 lm10.S<-glm(SER_SPIKE_COV~SER_ADM_COV+age10 + SEX_CLSA +
@@ -124,7 +124,7 @@ lm10.S<-glm(SER_SPIKE_COV~SER_ADM_COV+age10 + SEX_CLSA +
                              SER_EDU_COV +
                              DEP_CESD10_COVX +
                              dist_min_25km +
-                             time_vac15 + avginc10_15d, 
+                             time_vac15 + time_3cat, 
     data = CLSA_com50.c6, family = binomial(link = "logit"))
 
 # add predicted value
@@ -134,8 +134,8 @@ sum(CLSA_com50.c6$S.p)   # sum=2912, exact the same
 CLSA_com50.c6$S.p.alld<-predict(lm10.S, type = 'response', newdata = CLSA_com50.c6.DBS)
 CLSA_com50.c6$S.p.allv<-predict(lm10.S, type = 'response', newdata = CLSA_com50.c6.VBS)
 
-sum(CLSA_com50.c6$S.p.alld)/6174  # 43.74%
-sum(CLSA_com50.c6$S.p.allv)/6174  # 50.68%
+sum(CLSA_com50.c6$S.p.alld)/6174  # 43.29%
+sum(CLSA_com50.c6$S.p.allv)/6174  # 52.67%
 ```
 
 Participants who provided in-person venous samples were more likely to be male, white, unvaccinated, and live in an urban area (**Fig. 1**). After balancing for 10 covariates via propensity score weighting, venous samples were 223% more likely to be Anti-N positive (Odds ratio \[OR\]: 3.33, 95% confidence interval \[CI\]: 2.78--4.01) and 27% more likely to be Anti-S positive (OR: 1.27, 95% CI: 1.08--1.49). Among Anti-S antibody positive samples, the distribution of quantitative Anti-S levels was systematically lower for DBS samples (p \< 0.0001, Kolmogoriv-Smirnov test; **Fig. 2**). Few DBS (0.66%) samples were above the assays upper dynamic range (2500 U/ml), compared to 7.39% of Anti-S positive venous. Province-level sub-analyses yielded consistent findings (**Fig. S3**). Compared to using venous samples, we estimate that DBS for all participants would have underestimated anti-N seropositivity by 69.3% (2.49% positive with DBS vs. 8.12% with venous) and would have underestimated anti-S positivity by 13.7% (43.74% vs. 50.68%).

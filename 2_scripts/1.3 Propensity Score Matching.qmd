@@ -462,15 +462,15 @@ CLSA_com50.c6<-CLSA_com50 %>%
             SER_NUCLEOCAPSID_COV, SER_SPIKE_COV, SPIKE_ANTIBODY)
 CLSA_com50.c6<-na.omit(CLSA_com50.c6)
 
-# We will use model 6
+# We will use model lm06.t
 lm06 <- glm(SER_ADM_COV~AGE_NMBR_COVID + SEX_CLSA +
-            URBAN_RURAL_COVID +
+            urban_rural +
             SER_ETHN_WH_COV  +
             SER_EDU_COV +
             DEP_CESD10_COVX +
             dist_min +
             time_vac15 +
-            PROV_5 + outbreak, 
+            PROV_5 + time_3cat, 
             data=CLSA_com50.c6,
             family = binomial(link='logit'))
 summary(lm06)
@@ -517,7 +517,7 @@ w.01 <- weightit(SER_ADM_COV~age10 + SEX_CLSA +
                              DEP_CESD10_COVX +
                              dist_min_25km +
                              time_vac15 +
-                             PROV_5 + avginc10_15d, 
+                             PROV_5 + time_3cat, 
             data=CLSA_com50.c6, estimand = 'ATE', method = 'glm')
 summary(w.01)
 
@@ -743,6 +743,7 @@ lmm.06.N<-glm(SER_NUCLEOCAPSID_COV~SER_ADM_COV,
 
 lmm.06.N %>%
   gtsummary::tbl_regression(exponentiate = T)
+# OR=3.23 (2.74-3.83)
 
 # OR of anti-S positive
 lmm.06.S<-glm(SER_SPIKE_COV~SER_ADM_COV,
@@ -750,6 +751,7 @@ lmm.06.S<-glm(SER_SPIKE_COV~SER_ADM_COV,
               weights = w.weights)
 lmm.06.S %>%
   gtsummary::tbl_regression(exponentiate = T)
+# OR=1.37 (1.28-1.47)
 ```
 
 ## ======== Part.IV Making Plots for outcomes (Anti-N & Anti-S) =============
@@ -1167,47 +1169,56 @@ legend("bottomright", legend = c("DBS", "VBS"),
 
 As it indicated clear above, when sample size is small (\~10) we could observe the difference btw unweighted eCDF and weighted eCDF. However, when the sample size is large (\~1000) the difference between two figure is not visible to human readers
 
-## ========================= Part. V OR Plot ===============================
+##  Part. V OR Plot ===============================
 
 #### Model.06
 
 ```{r}
-CLSA_com50$dist_min_km<-CLSA_com50$dist_min/1000
-CLSA_com50$age10<-CLSA_com50$AGE_NMBR_COVID/10
-label(CLSA_com50$age10)="Age in 10-year Scale"
+# Add model 06.t specific variable into the data
+
+CLSA_com50$dist_min_25km<-CLSA_com50$dist_min/25000        # traveling distance - per 25km
+CLSA_com50$age10<-CLSA_com50$AGE_NMBR_COVID/10             # age - per 10 yr
+
+CLSA_com50$time_3cat[CLSA_com50$start_datetime_COV<as.Date("2021-04-01")]<-"Pre_April 21"
+CLSA_com50$time_3cat[CLSA_com50$start_datetime_COV>=as.Date("2021-04-01") &
+                        CLSA_com50$start_datetime_COV<=as.Date("2021-05-31")]<-"April_May 21"
+CLSA_com50$time_3cat[CLSA_com50$start_datetime_COV>as.Date("2021-05-31")]<-"June_Aug 21"
+
 # The regression model: Best-fit Model
-lm06p <- glm(SER_ADM_COV ~ age10 + 
-            URBAN_RURAL_COVID +
+# Beware we apply the model here to the original CLSA data (N=7230) instead of the complete cases only version (.c6, N=6174). This would allow us to utilize more records in the model.
+lm06.t <- glm(SER_ADM_COV ~ age10 + 
+            urban_rural +
             relevel(SER_ETHN_WH_COV, ref='1=WH')  +
             SER_EDU_COV +
             DEP_CESD10_COVX +
-            dist_min_km +
+            dist_min_25km +
             time_vac15 +
-            relevel(PROV_5, ref='5 = BC') + outbreak, 
+            relevel(PROV_5, ref='5 = BC') + time_3cat, 
             data=CLSA_com50,
             family = binomial(link='logit'))
-summary(lm06p)
+summary(lm06.t)
 
-tbl_regression(lm06p, exponentiate = T)
+tbl_regression(lm06.t, exponentiate = T)
 ```
 
 #### Model.06u
 
 ```{r}
 # Same model as model 06, but few variable are recoded to make the OR plot more visual-friendly.
+# We decided to present the ORs using model 06.t (w 3-cat time var) and CLSA_com50 data (N=7230), allow us to utlize more data.
 
-lm06.u <- glm(SER_ADM_COV~age10 + 
+lm06.t <- glm(SER_ADM_COV~age10 + 
             SEX_CLSA +
             urban_rural +
             relevel(SER_ETHN_WH_COV, ref = '1=WH')  +
             SER_EDU_COV +
             DEP_CESD10_COVX +
             dist_min_25km +
-            time_vac15 + avginc10_15d +
-            PROV_5, 
+            time_vac15 + time_3cat +
+            relevel(PROV_5, ref = '5 = BC'), 
             data=CLSA_com50,
             family = binomial(link='logit'))
-gtsummary::tbl_regression(lm06.u, exponentiate = T)
+gtsummary::tbl_regression(lm06.t, exponentiate = T)
 
 # Additional Modeling with int terms
 lm06.ui <- glm(SER_ADM_COV~age10 + 
@@ -1254,8 +1265,8 @@ simple_reg_OR(CLSA_com50$age10) # Looks good
 simple_reg_OR.w(CLSA_com50.c6$age10) # Looks good
 ```
 
+#### Add other variables, for unadjusted OR calculation
 ```{r}
-# Add other variables
 simple_reg_OR(CLSA_com50$SEX_CLSA)                            # Sex
 
 simple_reg_OR(CLSA_com50$urban_rural)                         # Rural/Urban, 3cate
@@ -1272,9 +1283,10 @@ simple_reg_OR(CLSA_com50$time_vac15)                          # Vax>15 Days?
 
 simple_reg_OR(relevel(CLSA_com50$PROV_5, ref='5 = BC'))       # Prov, ref=BC
 
-simple_reg_OR(CLSA_com50$avginc10_15d)                        # Outbreak Peak*
+simple_reg_OR(CLSA_com50$time_3cat)                        # Time_3cat
 
 # *Outbreak Peak* is defined by: >50 confirmed cases/1 million pop in Canada. Due to the delayed effect of infection to elevated Ab level, we left-shift it by 15 days. So it's "outbreak peak 15 days ago".
+# The "Outbreak Peak" is replaced with 3-cate time variable
 ```
 
 #### Add bivariate analysis using weighted data
@@ -1296,7 +1308,7 @@ simple_reg_OR.w(CLSA_com50.c6$time_vac15)                          # Vax>15 Days
 
 simple_reg_OR.w(relevel(CLSA_com50.c6$PROV_5, ref='5 = BC'))       # Prov, ref=BC
 
-simple_reg_OR.w(CLSA_com50.c6$avginc10_15d)                        # Outbreak Peak*
+simple_reg_OR.w(CLSA_com50.c6$time_3cat)                           # Time_3cat
 
 ```
 

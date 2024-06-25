@@ -10,10 +10,9 @@ Quarto enables you to weave together content and executable code into a finished
 
 ## Running Code
 
-The aim of this file is to
-1. used a simulated data to see if results from DBS samples are systematically underestimated when compared to venous samples, will that results in bad test performance (low sen & spec)?
+The aim of this file is to 1. used a simulated data to see if results from DBS samples are systematically underestimated when compared to venous samples, will that results in bad test performance (low sen & spec)?
 
-2. If the COI are the same, can we observe lower OR of test positivity among DBS samples?
+2.  If the COI are the same, can we observe lower OR of test positivity among DBS samples?
 
 ## Load Packages
 
@@ -27,6 +26,7 @@ library(ggplot2)       # for heatmap
 ## 1. Simulated Data
 
 ## Create simulate data
+
 ```{r}
 # sample size = 2000
 set.seed(996116)
@@ -44,7 +44,9 @@ table(pos_dbs, pos_vbs)
 table(pos_dbs, pos_true)
 table(pos_vbs, pos_true)
 ```
+
 ## Make a plot
+
 ```{r}
 plot(ecdf(S_dbs),
      xlim = range(0.4, S_vbs),
@@ -62,13 +64,16 @@ axis(side=1, at=c(-0.4, 0, 1, 10, 100, 1000))
 legend("bottomright", legend = c("DBS", "Venous"),
        lwd = 3, col = c("blue", "red"))
 ```
+
 ## 2. Same COI for Plasma (Venous) & DBS
+
 ```{r}
 # Load data
 load(file='../1_data/private/CLSA_com50.RData')
 ```
 
 #### Recreate Anti-N test results
+
 ```{r}
 CLSA_com50$N_same_COI<-
   if_else(CLSA_com50$NUCLEOCAPSID_ANTIBODY<0.103, 0,1)
@@ -87,11 +92,12 @@ lm09.a<-glm(SER_NUCLEOCAPSID_COV~SER_ADM_COV,
           data = CLSA_com50, family = binomial(link='logit'))
 gtsummary::tbl_regression(lm09.a, exponentiate = TRUE)
 ```
+
 ```{r}
 # Adjusted analysis
 # create clean dataset .c6
 CLSA_com50.c6<-CLSA_com50 %>%
-  dplyr::select(SER_ADM_COV, AGE_NMBR_COVID , age10, SEX_CLSA ,
+  dplyr::select(SER_ADM_COV, start_datetime_COV ,AGE_NMBR_COVID , age10, SEX_CLSA ,
             URBAN_RURAL_COVID, urban_rural,
             SER_ETHN_WH_COV  ,
             SER_EDU_COV ,
@@ -131,6 +137,7 @@ gtsummary::tbl_regression(lm09.w, exponentiate = TRUE)
 ## 3. For quantitative anti-N who is higher: DBS
 
 ## Ecdf for anti-N quantitative
+
 ```{r}
 plot(ecdf(CLSA_com50$NUCLEOCAPSID_ANTIBODY[CLSA_com50$SER_ADM_COV==0]),
      xlim = range(0.1, 100),
@@ -152,9 +159,11 @@ legend("bottomright", legend = c("DBS", "VBS"),
 ```
 
 ## A heatmap indicating the number of samples we have in each month
+
 **Notes:** We are going to add this figure into the supplement section. We have two time stamps variables, the time when they did the questionnaire (start_date_COV) amd the time they went to DCS. For now we will go ahead with the questionnaire date but we need to confirm this with Jennifer.
 
 General design: x-axis is time and align figures vertically so we can make comparison among all five regions:
+
 ```{r}
 # five regions
 table(CLSA_com50.c6$PROV_5, useNA = 'ifany')
@@ -165,7 +174,9 @@ summary(CLSA_com50$start_datetime_COV)
 table(is.na(CLSA_com50$start_datetime_COV), useNA='ifany')
 # 2020/10/29 - 2021/08/18
 ```
+
 #### Pre-process the CLSA data
+
 ```{r}
 # add samplemonth var
 CLSA_com50$samplemonth<-as.yearmon(CLSA_com50$start_datetime_COV)
@@ -176,6 +187,7 @@ tb1<-CLSA_com50 %>%
 ```
 
 #### Heatmap
+
 ```{r}
 # creating the heatmap
 hmap01<-ggplot(data = tb1[!is.na(tb1$samplemonth),], mapping = aes(x = samplemonth,
@@ -220,6 +232,7 @@ hmap02<-ggplot(data = tb1[!is.na(tb1$samplemonth),],
 
 hmap02 +  facet_wrap(~PROV_5, nrow = 5)
 ```
+
 #### Alton's comments on heatmap: I thought the total count of samples was similar for DBS vs venous but this looks much higher for DBS. Why is that? Is this before applying our study inclusion criteria?
 
 ```{r}
@@ -239,6 +252,7 @@ sum(tb2$n[tb2$SER_ADM_COV==1]) #VBS=  3457
 sum(tb1$n[tb1$SER_ADM_COV==0]) #DBS= -3773 (value changed to minus for blue color)
 sum(tb1$n[tb1$SER_ADM_COV==1]) #VBS=  3457
 ```
+
 ```{r}
 ## Use histogram to present the difference:
 tb3<-CLSA_com50 %>%
@@ -291,9 +305,10 @@ cowplot::plot_grid(p01, hmap02+  facet_wrap(~PROV_5, nrow = 5),
                    ncol = 1, nrow = 2)
 dev.off()
 ```
+
 ## 4. Potential Data Quality Concerns
 
-**Notes:** Our concerns: We found a discrepancy: Among venous plasma samples with negative test results, the anti-N S/Co ratio can reach as high as 0.24, which exceeds the COI applied  (0.103).So we wonder if the COI for venous plasma samples has also changed like COIs applied to DBS samples?
+**Notes:** Our concerns: We found a discrepancy: Among venous plasma samples with negative test results, the anti-N S/Co ratio can reach as high as 0.24, which exceeds the COI applied (0.103).So we wonder if the COI for venous plasma samples has also changed like COIs applied to DBS samples?
 
 ```{r}
 # Reload the CLSA_mn: This is the merged CLSA data with quant anti-N/S results. Based on this version of dataset we applied inclu/exclusion criteria (comprehensive cohort and <=50 km) and got our final dataset (CLSA_com50) for analysis.
@@ -311,29 +326,110 @@ CLSA_mn %>%
   .[.$NUCLEOCAPSID_ANTIBODY>=0.103,] %>%
   select(entity_id, NUCLEOCAPSID_ANTIBODY, SPIKE_ANTIBODY, SER_SPIKE_COV)
 ```
+
 We got some replies from the CLSA data group, who confirmed that those 18 cases are caused by data entry error and they should have been categorized into DBS group. A updated ver of CLSA data will be share with the data team soon.
 
-## Some code for testing purposes
 
-The purpose of those code is to figure of where the problem is that causing the server lag problems. The problem emerged when cleaning the APL data.
+## 5. Add time variables into the model
+
+#### 5.1 LR test, model with new time variable
+```{r}
+## The data used for predicting the use of venous sampling, in PSW
+View(CLSA_com50.c6)
+
+## Add time variable into the data
+CLSA_com50.c6$time_3cat[CLSA_com50.c6$start_datetime_COV<as.Date("2021-04-01")]<-"Pre_April 21"
+CLSA_com50.c6$time_3cat[CLSA_com50.c6$start_datetime_COV>=as.Date("2021-04-01") &
+                        CLSA_com50.c6$start_datetime_COV<=as.Date("2021-05-31")]<-"April_May 21"
+CLSA_com50.c6$time_3cat[CLSA_com50.c6$start_datetime_COV>as.Date("2021-05-31")]<-"June_Aug 21"
+
+table(CLSA_com50.c6$time_3cat, useNA = 'ifany')
+```
+#### 5.2 Comparison among models 
+```{r}
+# old model: model.06u
+# model 06p: outdated as we used an outbreak indicator in it--"outbreak"
+# model 06u: the model for Fig S2, use avginc10_15d
+# model 06t: model replace avginc10_15d with time_3cat
+# model 06ut: model with both avginc10_15d and time_3cat
+
+# The regression model: Best-fit Model, the scale
+lm06.u <- glm(SER_ADM_COV~age10 + 
+            SEX_CLSA +
+            urban_rural +
+            relevel(SER_ETHN_WH_COV, ref = '1=WH')  +
+            SER_EDU_COV +
+            DEP_CESD10_COVX +
+            dist_min_25km +
+            time_vac15 + avginc10_15d +
+            PROV_5, 
+            data=CLSA_com50.c6,
+            family = binomial(link='logit'))
+gtsummary::tbl_regression(lm06.u, exponentiate = T)
+summary(lm06.u)
+
+lm06.t <- glm(SER_ADM_COV~age10 + 
+            SEX_CLSA +
+            urban_rural +
+            relevel(SER_ETHN_WH_COV, ref = '1=WH')  +
+            SER_EDU_COV +
+            DEP_CESD10_COVX +
+            dist_min_25km +
+            time_vac15 + time_3cat +
+            PROV_5, 
+            data=CLSA_com50.c6,
+            family = binomial(link='logit'))
+summary(lm06.t)
+
+lm06.ut <- glm(SER_ADM_COV~age10 + 
+            SEX_CLSA +
+            urban_rural +
+            relevel(SER_ETHN_WH_COV, ref = '1=WH')  +
+            SER_EDU_COV +
+            DEP_CESD10_COVX +
+            dist_min_25km +
+            time_vac15 + avginc10_15d + time_3cat +
+            PROV_5, 
+            data=CLSA_com50.c6,
+            family = binomial(link='logit'))
+summary(lm06.ut)
+
+lmtest::lrtest(lm06.t, lm06.u)
+```
+```{r}
+# lm06.r: as reference, no time variables
+lm06.r   <- glm(SER_ADM_COV~age10 + 
+            SEX_CLSA +
+            urban_rural +
+            relevel(SER_ETHN_WH_COV, ref = '1=WH')  +
+            SER_EDU_COV +
+            DEP_CESD10_COVX +
+            dist_min_25km +
+            time_vac15 +
+            PROV_5, 
+            data=CLSA_com50.c6,
+            family = binomial(link='logit'))
+summary(lm06.r)
+
+# lm06.p: add outbreak indicator
+lm06.p   <- glm(SER_ADM_COV~age10 + 
+            SEX_CLSA +
+            urban_rural +
+            relevel(SER_ETHN_WH_COV, ref = '1=WH')  +
+            SER_EDU_COV +
+            DEP_CESD10_COVX +
+            dist_min_25km +
+            time_vac15 + outbreak +
+            PROV_5, 
+            data=CLSA_com50.c6,
+            family = binomial(link='logit'))
+summary(lm06.p)
+```
+
+**Note**: the model with new 3-category indicator works better than the old model we used for figure 2S (lm06.u). With the presence of this new time variable, adding 7-day average incidence (15 days before the date of sample collection) failed to improve the model fit significantly (lm06.ut). As the results of a short discussion with Alton we decided to continue our analysis with model lm06.t only.
 
 ```{r}
-# Load a random data for DBS vs Venous project:
-load("~/dbs-vs-venous-antibodies/1_data/private/CLSA_Alberta_PSM.RData")
-View(CLSA_mAB)
-
-# run a simple model building using the data
-lm10.t<-glm(SER_SPIKE_COV~SER_ADM_COV, 
-          data = CLSA_mAB)
-gtsummary::tbl_regression(lm10.t, exponentiate = TRUE)
-
-rm(lm10.t)
-
-# Load the APL data when the problem happens:
-load("~/COVID-assay-adjust-methods/1_data/private/RFD4682e.RData")
-load("~/COVID-assay-adjust-methods/1_data/private/RFD4682e1.RData")
-
-rm(RFD4682_e)
-rm(RFD4682_e1)
+# Remove unnecessary models
+rm(lm06.r, lm06.p, lm06.u, lm06.ut)
 ```
-## 5. Making plots for the 
+
