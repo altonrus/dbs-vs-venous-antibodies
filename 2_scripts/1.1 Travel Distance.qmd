@@ -1,6 +1,7 @@
 ---
-title: "1.1 Travel Distance Est"
+title: "1.1 Travel Distance"
 format: html
+author: Jiacheng Chen
 editor: visual
 ---
 
@@ -19,7 +20,6 @@ The purpose of this file is to calculate the traveling distance of each FSAs to 
 
 ```{r}
 library(gmapsdistance) # use this pak to calculate traveling distance
-# library(rdgal) this pak is not available for this version of R
 library(sf)            # Loading .sph data, processing polygon...
 library(ggplot2)       # plotting pak 
 library(dplyr)
@@ -28,39 +28,22 @@ library(dplyr)
 ## Load the dataset
 
 ```{r}
-load(file='~/dbs-vs-venous-antibodies/1_data/private/CLSA_mncom.RData')
+load(file='../1_data/private/CLSA_mncom.RData')
 ```
 
-## Test the pak using a simple example
-
+## Set API
 ```{r}
-set.api.key("AIzaSyAuJVVKUamO_OVHfsUavMN2zzjjQ7sAB9I")
-gmapsdistance(origin = c("Washington DC", "New York NY", "Seattle WA"),
-              destination = c("Washington DC", "New York NY", "Seattle WA"),
-              key = "AIzaSyAuJVVKUamO_OVHfsUavMN2zzjjQ7sAB9I",
-)$Distance
-## it works, the output is a 3-by-3 table showing the distance in meters
-
-# Second example, using less-specific info
-gmap_test2<-gmapsdistance(origin = c("H3T", "M6K"),
-              destination = c("3280 Hospital Drive N.W. Calgary, AB T2N 4Z6",
-                              "3280 Hospital Drive N.W. Calgary, AB T2N 4Z6"))
-gmap_test2$Distance
-# problem: needs to be more precise on location, FSA may not works
-## Use coordinates
-gmap_test3<-gmapsdistance(origin = c("54.860461, -111.546162"),
-              destination = c("3280 Hospital Drive N.W. Calgary, AB T2N 4Z6"),
-              mode="driving")
-
-gmap_test3$Distance
+# Replace "XX" below with the proper Google Map api key
+set.api.key("XX")
 ```
 
 ------------------------------------------------------------------------
 
-## Part I. Calculate Distance to All FSAs in Alberta
+## Part I. Calculate the center coord of each FSA
 
-### Solution 1: Get the center coord of each FSA
+#### 1.1 Load shape file
 
+#### Source of the shape file:https://open.canada.ca/data/en/dataset/a883eb14-0c0e-45c4-b8c4-b54c4a819edb
 ```{r}
 # Load shape file
 s.sf<-st_read("~/dbs-vs-venous-antibodies/1_data/AB_Geo/lfsa000a21a_e.shp")       # FSA file
@@ -80,7 +63,7 @@ plot(s.sf$geometry)
 plot(s.sf.10$geometry) # all FSAs in CLSA data
 ```
 
-#### Methos 1.1 use the center of each polygon
+#### 1.2 Locate the center of each polygon
 
 ```{r}
 centroid<-st_centroid(s.sf.ab)
@@ -92,13 +75,15 @@ ggplot() +
   geom_sf(data = centroid, color = 'red')
 ```
 
-### Looks good, transform the coordinates for GMap to use
+#### Looks good, transform the coordinates for GMap to use
 
 ```{r}
 centroid$coord<-st_transform(centroid$geometry, 4326)
 
 # Export as csv
 write.csv(centroid, "~/AB_Geo/FSA_Center.csv", row.names=TRUE)
+
+# Convert the coordinates manually using Excel
 
 # Imported the converted xlsx file
 library(readxl)
@@ -107,7 +92,7 @@ FSA_Center_small<-select(FSA_Center_Converted, CFSAUID, coord_text)
 FSA_Center_20<-FSA_Center_small[1:20,]
 ```
 
-## Calculate Traveling Time
+#### 1.3 Calculate Traveling Time for Alberta
 
 ```{r}
 gmap_FSA20<-gmapsdistance(origin = FSA_Center_20$coord_text,
@@ -512,7 +497,7 @@ CLSA_FSA<-CLSA_FSA %>%
   mutate(dist_min = min(dist_01, dist_02, dist_03, dist_04, na.rm = T))
 ```
 
-## Plot
+#### 2.4 Plot and DBS vs venous
 
 ```{r}
 hist(CLSA_temp$dist_min[CLSA_temp$SER_ADM_COV==0]/1000, breaks = 25,
@@ -523,7 +508,7 @@ hist(CLSA_temp$dist_min[CLSA_temp$SER_ADM_COV==1]/1000, breaks = 25,
      main = "Histogram of Min Traveling Distance, VBS")
 ```
 
-Mean traveling dist in two groups
+#### Mean traveling dist in two groups
 
 ```{r}
 # Everyone in comprehensive cohort
@@ -544,17 +529,22 @@ CLSA_mncom[CLSA_mncom$dist_min<50000,]  %>%
   t.test(dist_min~SER_ADM_COV, data=., var.equal=F)
 ```
 
-Making \<50 KM subset
-
-```{r}
-CLSA_com50<-CLSA_mncom[CLSA_mncom$dist_min<50000,]
-```
-
 ------------------------------------------------------------------------
 
 ## Save the FSA Center Data
 
 ```{r}
-save(CLSA_com50, file = "~/dbs-vs-venous-antibodies/1_data/private/CLSA_com50.RData")
 save(CLSA_FSA, file = "~/dbs-vs-venous-antibodies/1_data/private/CLSA_FSA.RData")
 ```
+
+
+
+
+
+
+
+
+
+
+
+

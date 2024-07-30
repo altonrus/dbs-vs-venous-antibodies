@@ -1,0 +1,741 @@
+---
+title: "1.0 Data Merging & Cleaning"
+author: Jiacheng Chen
+format: html
+editor: visual
+date: 21 June 2023
+---
+
+## Quarto
+
+Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+
+## Running Code
+
+This rmd file will include codes for those purposes:
+
+1.  Dataset import, merging and cleaning
+2.  Recode variables for future analysis
+
+## Load necessary paks
+
+```{r}
+library(haven)         # Import csv and xlsx files
+library(dplyr)         # Dataset management
+# library(epiR)          # make epi tables
+```
+
+## 1. Import the CLSA Datasets
+
+```{r}
+# CLSA Questionnaire Data
+CLSA_Covid<-read.csv("~/dbs-vs-venous-antibodies/1_data/private/2209005_McGill_ARussell_Covid/2209005_McGill_ARussell_Covid_Combined_v1-1.csv")
+
+# CLSA Covid Antibody Data v2.2
+CLSA_Antibody <- read.csv("~/dbs-vs-venous-antibodies/1_data/private/2209005_McGill_ARussell_Covid/2209005_McGill_ARussel_Covid_Antibody_Combined_NoIndigenousIdentifiers_v2-2+APL.csv")
+```
+
+## 2. Data Merging & Cleaning
+
+### 2.1 Merging the datasets, only selecting useful variables.
+
+```{r}
+# CLSA_Covid data
+CLSA_Covid_small<-select(CLSA_Covid, entity_id, cohort,
+                                AGE_NMBR_COVID, SEX_CLSA,
+                                PROV_COVID,
+                                FSA_COVID,
+                                URBAN_RURAL_COVID,
+                                CCC_LTC_ASTHM_COVID, # Minor Health Conditions
+                                CCC_LTC_COPD_COVID,
+                                CCC_LTC_OTLD_COVID,
+                                CCC_LTC_DIA_COVID,
+                                CCC_LTC_HBP_COVID,
+                                CCC_LTC_HEART_COVID,
+                                CCC_LTC_CANC_COVID,
+                                CCC_LTC_FAIL_COVID,
+                                CCC_LTC_AUTOIMD_COVID,
+                                CCC_LTC_DRPNEU_COVID,
+                                CCC_LTC_HIV_COVID,
+                                CCC_LTC_NONE_COVID,
+                                CCC_TRANSP_COVID,   # Major Health Conditions
+                                CCC_CHEMO_COVID,
+                                FUL_SIT1H_COVX,     # Mobility
+                                FUL_SIT1HDG_COVX,
+                                FUL_FSTR_COVX,
+                                FUL_FSTRDG_COVX,
+                                FUL_WK23B_COVX,
+                                FUL_WK23BDG_COVX,
+                                DEP_CESD10_COVX,    # Mental -Dep 10
+                                GAD_NBRMIS_COVX)    # Mental -Anxiety
+
+## CLSA Antibody Data
+CLSA_Antibody_small<-select(CLSA_Antibody, entity_id,
+                            SER_ETHN_WH_COV,
+                            SER_ETHN_SA_COV,
+                            SER_ETHN_ZH_COV,
+                            SER_ETHN_BL_COV,
+                            SER_ETHN_FP_COV,
+                            SER_ETHN_LA_COV,
+                            SER_ETHN_AR_COV,
+                            SER_ETHN_SE_COV,
+                            SER_ETHN_WA_COV,
+                            SER_ETHN_KO_COV,
+                            SER_ETHN_JA_COV,
+                            SER_ETHN_OTSP_COV,
+                            SER_ETHN_DK_NA_COV,
+                            SER_ETHN_REFUSED_COV,
+                            SER_EDU_COV,
+                            SER_FAMPH_COV,
+                            SER_NUCLEOCAPSID_COV,
+                            SER_SPIKE_COV,
+                            SER_ABRSLT_COV,
+                            SER_ADM_COV)
+
+# looks good, now merge those two
+CLSA_m<-merge(CLSA_Covid_small, CLSA_Antibody_small, by = "entity_id", all=FALSE)
+# We got N=14437 Obs in the merged dataset
+
+```
+
+### 2.2 Clean the merged data
+
+```{r}
+## The Anti-N
+CLSA_m$SER_NUCLEOCAPSID_COV[CLSA_m$SER_NUCLEOCAPSID_COV<0]<-NA
+table(CLSA_m$SER_NUCLEOCAPSID_COV, useNA = 'ifany')
+
+# Age Var - numeric, good
+# Gender var - two categories, directly useable
+
+# Urban/Rural categories
+table(CLSA_m$URBAN_RURAL_COVID, useNA = 'ifany')
+CLSA_m$URBAN_RURAL_COVID[CLSA_m$URBAN_RURAL_COVID==-88888]<-NA
+
+# 3-categorie Urban/Rural indicator
+
+## Education
+table(CLSA_m$SER_EDU_COV, useNA = 'ifany')
+CLSA_m$SER_EDU_COV[CLSA_m$SER_EDU_COV %in% c(-88888,98,99)]<-NA
+
+## Primary Care
+table(CLSA_m$SER_FAMPH_COV, useNA = 'ifany')
+CLSA_m$SER_FAMPH_COV[CLSA_m$SER_FAMPH_COV %in% c(-88888,98,99)]<-NA
+
+## Race/Ethnicity
+table(CLSA_m$SER_ETHN_WH_COV, useNA = 'ifany')
+CLSA_m$SER_ETHN_WH_COV[CLSA_m$SER_ETHN_WH_COV==-88888]<-NA
+
+## Physical Health
+table(CLSA_m$CCC_LTC_NONE_COVID, useNA = 'ifany')
+## So all paticipants has some minor health conditions, considering their age it make sense
+
+## Mobility
+# -88881 = Did not complete data collection <- recode as "NA"
+# 1      = Yes
+# 2      = No
+# 4      = Don't do on doc's orders <- merge to 'No'
+
+#### Stand up
+table(CLSA_m$FUL_SIT1H_COVX, useNA = 'ifany')
+CLSA_m$FUL_SIT1H_COVX[CLSA_m$FUL_SIT1H_COVX %in% c(-88888,3,9,8,-88881)]<-NA
+CLSA_m$FUL_SIT1H_COVX[CLSA_m$FUL_SIT1H_COVX %in% c(4)]<-2
+
+#### Walk up/down stairs
+table(CLSA_m$FUL_FSTR_COVX, useNA = 'ifany')
+CLSA_m$FUL_FSTR_COVX[CLSA_m$FUL_FSTR_COVX %in% c(-88888,3,9,8, -88881)]<-NA
+CLSA_m$FUL_FSTR_COVX[CLSA_m$FUL_FSTR_COVX %in% c(4)]<-2
+
+#### Walk to neighborhood
+table(CLSA_m$FUL_WK23B_COVX, useNA = 'ifany')
+CLSA_m$FUL_WK23B_COVX[CLSA_m$FUL_WK23B_COVX %in% c(-88888,3,9,8,-88881)]<-NA
+CLSA_m$FUL_WK23B_COVX[CLSA_m$FUL_WK23B_COVX %in% c(4)]<-2
+
+## Mental Health
+#### Depression Scale
+table(CLSA_m$DEP_CESD10_COVX, useNA = 'ifany')
+CLSA_m$DEP_CESD10_COVX[CLSA_m$DEP_CESD10_COVX %in% c(-77772, -77771, -88881)]<-NA
+
+#### Anxiety Scale
+table(CLSA_m$GAD_NBRMIS_COVX, useNA = 'ifany')
+
+## Save the dataset
+save(CLSA_m, file = "~/dbs-vs-venous-antibodies/1_data/private/CLSA_m.RData")
+```
+
+### 2.3 Create new var representing general health
+
+```{r}
+# First, check the coding of those variables
+# 1. Asthma:
+table(CLSA_m$CCC_LTC_ASTHM_COVID, useNA = 'ifany')
+
+# Need to recode:
+# -88888 missing <-NA
+# -88881 Did not complete data collection <-NA
+# 8 don't know, 9 prefer not to answer <-NA
+# 2 = No <- recode as 0
+# 1 = Yes
+
+# to make future colsum calculation easier, use 0.01 to replace NA
+CLSA_m$CCC_LTC_ASTHM_COVID[CLSA_m$CCC_LTC_ASTHM_COVID %in% c(-88888,9,8,-88881)]<-0.01
+CLSA_m$CCC_LTC_ASTHM_COVID[CLSA_m$CCC_LTC_ASTHM_COVID %in% c(2)]<-0
+
+# 2. COPD
+CLSA_m$CCC_LTC_COPD_COVID[CLSA_m$CCC_LTC_COPD_COVID %in% c(-88888,9,8,-88881)]<-0.01
+CLSA_m$CCC_LTC_COPD_COVID[CLSA_m$CCC_LTC_COPD_COVID %in% c(2)]<-0
+table(CLSA_m$CCC_LTC_COPD_COVID, useNA = 'ifany')
+
+# 3. other lung disease
+CLSA_m$CCC_LTC_OTLD_COVID[CLSA_m$CCC_LTC_OTLD_COVID %in% c(-88888,9,8,-88881)]<-0.01
+CLSA_m$CCC_LTC_OTLD_COVID[CLSA_m$CCC_LTC_OTLD_COVID %in% c(2)]<-0
+table(CLSA_m$CCC_LTC_OTLD_COVID, useNA = 'ifany')
+
+# 4. diabetes
+CLSA_m$CCC_LTC_DIA_COVID[CLSA_m$CCC_LTC_DIA_COVID %in% c(-88888,9,8,-88881)]<-0.01
+CLSA_m$CCC_LTC_DIA_COVID[CLSA_m$CCC_LTC_DIA_COVID %in% c(2)]<-0
+table(CLSA_m$CCC_LTC_DIA_COVID, useNA = 'ifany')
+
+# 5. high blood pressure
+CLSA_m$CCC_LTC_HBP_COVID[CLSA_m$CCC_LTC_HBP_COVID %in% c(-88888,9,8,-88881)]<-0.01
+CLSA_m$CCC_LTC_HBP_COVID[CLSA_m$CCC_LTC_HBP_COVID %in% c(2)]<-0
+table(CLSA_m$CCC_LTC_HBP_COVID, useNA = 'ifany')
+
+# 6.heart disease
+CLSA_m$CCC_LTC_HEART_COVID[CLSA_m$CCC_LTC_HEART_COVID %in% c(-88888,9,8,-88881)]<-0.01
+CLSA_m$CCC_LTC_HEART_COVID[CLSA_m$CCC_LTC_HEART_COVID %in% c(2)]<-0
+table(CLSA_m$CCC_LTC_HEART_COVID, useNA = 'ifany')
+
+# 7. cancer
+CLSA_m$CCC_LTC_CANC_COVID[CLSA_m$CCC_LTC_CANC_COVID %in% c(-88888,9,8,-88881)]<-0.01
+CLSA_m$CCC_LTC_CANC_COVID[CLSA_m$CCC_LTC_CANC_COVID %in% c(2)]<-0
+table(CLSA_m$CCC_LTC_CANC_COVID, useNA = 'ifany')
+
+# 8. Heart, lung, kidney, liver, or pancreas failure
+CLSA_m$CCC_LTC_FAIL_COVID[CLSA_m$CCC_LTC_FAIL_COVID %in% c(-88888,9,8,-88881)]<-0.01
+CLSA_m$CCC_LTC_FAIL_COVID[CLSA_m$CCC_LTC_FAIL_COVID %in% c(2)]<-0
+table(CLSA_m$CCC_LTC_FAIL_COVID, useNA = 'ifany')
+
+# 9. autoimmune disease
+CLSA_m$CCC_LTC_AUTOIMD_COVID[CLSA_m$CCC_LTC_AUTOIMD_COVID %in% c(-88888,9,8,-88881)]<-0.01
+CLSA_m$CCC_LTC_AUTOIMD_COVID[CLSA_m$CCC_LTC_AUTOIMD_COVID %in% c(2)]<-0
+table(CLSA_m$CCC_LTC_AUTOIMD_COVID, useNA = 'ifany')
+
+# 10. Pneumonia  confirmed using chest X-rays
+CLSA_m$CCC_LTC_DRPNEU_COVID[CLSA_m$CCC_LTC_DRPNEU_COVID %in% c(-88888,9,8,-88881)]<-0.01
+CLSA_m$CCC_LTC_DRPNEU_COVID[CLSA_m$CCC_LTC_DRPNEU_COVID %in% c(2)]<-0
+table(CLSA_m$CCC_LTC_DRPNEU_COVID, useNA = 'ifany')
+
+# 11. HIV
+CLSA_m$CCC_LTC_HIV_COVID[CLSA_m$CCC_LTC_HIV_COVID %in% c(-88888,9,8,-88881)]<-0.01
+CLSA_m$CCC_LTC_HIV_COVID[CLSA_m$CCC_LTC_HIV_COVID %in% c(2)]<-0
+table(CLSA_m$CCC_LTC_HIV_COVID, useNA = 'ifany')
+
+# 12. None of the above
+# Not useful
+
+# Summary 11 conditions above as minor health conditions
+CLSA_m$min_health<-rowSums(select(CLSA_m, CCC_LTC_ASTHM_COVID : CCC_LTC_HIV_COVID)
+                           , na.rm = TRUE)
+table(CLSA_m$min_health, useNA = 'ifany') # looks good
+CLSA_m$min_health[CLSA_m$min_health==0.11]<-NA
+
+# Second, for major health conditions
+# 1 : Organ Transplant
+CLSA_m$CCC_TRANSP_COVID[CLSA_m$CCC_TRANSP_COVID %in% c(-88888,9,8,-88881)]<-NA
+CLSA_m$CCC_TRANSP_COVID[CLSA_m$CCC_TRANSP_COVID %in% c(2)]<-0
+table(CLSA_m$CCC_TRANSP_COVID, useNA = 'ifany')
+
+# 2 : Chemotherapy
+CLSA_m$CCC_CHEMO_COVID[CLSA_m$CCC_CHEMO_COVID %in% c(-88888,9,8,-88881)]<-NA
+CLSA_m$CCC_CHEMO_COVID[CLSA_m$CCC_CHEMO_COVID %in% c(2)]<-0
+table(CLSA_m$CCC_CHEMO_COVID, useNA = 'ifany')
+
+# Sum the number of major health conditions
+CLSA_m$maj_health<-rowSums(select(CLSA_m, CCC_TRANSP_COVID, CCC_CHEMO_COVID)
+                           , na.rm = FALSE)
+table(CLSA_m$maj_health, useNA = 'ifany')
+CLSA_m$maj_health[CLSA_m$maj_health %in% c(0.01, 0.02)]<-NA
+
+# create a binary maj health indicator
+CLSA_m$maj_health_bin<-CLSA_m$maj_health
+CLSA_m$maj_health_bin[CLSA_m$maj_health_bin==2]<-1
+
+table(CLSA_m$maj_health, CLSA_m$maj_health_bin, useNA = 'ifany')
+```
+
+### 2.4 CLSA quantitative assay results are available, merge it
+
+```{r}
+COVID_19_Ab_Numeric <- read.csv("~/dbs-vs-venous-antibodies/1_data/private/2209005_COVID-19_Antibody_SpecialRequest_APL_test_results.csv")
+
+# looks good, now merge those two
+CLSA_mn<-merge(CLSA_m, COVID_19_Ab_Numeric, by = "entity_id", all=FALSE)
+# We got N=13124 Obs in the merged dataset
+
+# Save the Merged data with numeric values
+save(CLSA_mn, file = '~/dbs-vs-venous-antibodies/1_data/private/CLSA_mn.RData')
+```
+
+#### In the merged data, check Anti-S dist among DBS (ADM=2) and Venous (ADM=1)
+```{r}
+# DBS: ADM=2, nagative
+summary(CLSA_mn$SPIKE_ANTIBODY[CLSA_mn$SER_ADM_COV==2 &
+                                      CLSA_mn$SER_SPIKE_COV==0])
+sd(CLSA_mn$SPIKE_ANTIBODY[CLSA_mn$SER_ADM_COV==2 &
+                                      CLSA_mn$SER_SPIKE_COV==0], na.rm = T)
+
+# DBS: ADM=2, Positive
+summary(CLSA_mn$SPIKE_ANTIBODY[CLSA_mn$SER_ADM_COV==2 &
+                                      CLSA_mn$SER_SPIKE_COV==1])
+sd(CLSA_mn$SPIKE_ANTIBODY[CLSA_mn$SER_ADM_COV==2 &
+                                      CLSA_mn$SER_SPIKE_COV==1], na.rm = T)
+
+# Venous: ADM=1, nagative
+summary(CLSA_mn$SPIKE_ANTIBODY[CLSA_mn$SER_ADM_COV==1 &
+                                      CLSA_mn$SER_SPIKE_COV==0])
+sd(CLSA_mn$SPIKE_ANTIBODY[CLSA_mn$SER_ADM_COV==1 &
+                                      CLSA_mn$SER_SPIKE_COV==0], na.rm = T)
+
+# Venous: ADM=1, Positive
+summary(CLSA_mn$SPIKE_ANTIBODY[CLSA_mn$SER_ADM_COV==1 &
+                                      CLSA_mn$SER_SPIKE_COV==1])
+sd(CLSA_mn$SPIKE_ANTIBODY[CLSA_mn$SER_ADM_COV==1 &
+                                      CLSA_mn$SER_SPIKE_COV==1], na.rm = T)
+
+```
+#### Check the numbers in each track
+```{r}
+## Original CLSA_COVID data, N=28,565
+str(CLSA_Covid$cohort)
+table(CLSA_Covid$cohort, useNA = 'ifany')
+# Comp 18,533, Tracking cohort 10,032
+
+## Merged data with co-variates and assay results, N=13,124
+table(CLSA_mn$cohort, useNA = 'ifany')
+# Comp 7678, Trac 5446
+
+table(CLSA_mn$cohort, CLSA_mn$SER_ADM_COV, useNA = 'ifany')
+# No VBS sample in tracking group, makes sense. 
+```
+
+### 2.5 Create Subsets
+
+#### Comprehensive Cohort Subset
+
+```{r}
+# Making subset
+CLSA_mncom<-CLSA_mn[CLSA_mn$cohort=="Comprehensive",]
+
+# Recode DBS-->0, venous-->1 
+CLSA_mn$SER_ADM_COV[CLSA_mn$SER_ADM_COV==2]<-0 # Making DBS = 0 (ref)
+CLSA_mncom$SER_ADM_COV[CLSA_mncom$SER_ADM_COV==2]<-0 # Making DBS = 0 (ref)
+```
+
+#### Merge traveling dist to CLSA_mncom
+
+```{r}
+# Load the traveling distance estimation, from 1.1 Travel Distance.qmd
+load("../1_data/private/CLSA_FSA.RData")
+
+CLSA_mncom<-merge(CLSA_mncom, select(CLSA_FSA, FSA_COVID, dist_min), by='FSA_COVID',
+      all = FALSE)
+# Only keep those <=50 km
+CLSA_com50<-CLSA_mncom[CLSA_mncom$dist_min<=50000,]
+
+# Save the subset
+save(CLSA_mncom, file = '../1_data/private/CLSA_mncom.RData')
+save(CLSA_com50, file = '../1_data/private/CLSA_com50.RData')
+```
+
+#### Remove all unnecessary data
+```{r}
+rm(CLSA_Antibody_small, CLSA_Covid, CLSA_Covid_small,
+   COVID_19_Ab_Numeric,
+   CLSA_m, CLSA_mn, CLSA_mncom)
+```
+
+
+## 3. Add additional covariates
+On the top of CLSA_mncom subset, we selected those live within 50 km of the data collection sites (DCS), N=7230 participants were finally selected. Then we added additional covariates, including:
+
+-   Time since last PCR+ Test (Days)
+
+-   Time since last vaccination
+
+-   Binary: Time to PCR
+
+#### A function for proportion tables
+```{r}
+proptable_chisq2<-function(r){
+            tab1<-table(r, CLSA_com50$SER_ADM_COV)
+            tab1.prop<-round(prop.table(tab1, margin = 2), digits = 4)*100
+            tab1.prop
+            tab2<-cbind(tab1[,1], tab1.prop[,1], tab1[,2], tab1.prop[,2])
+            colnames(tab2)<-c("DBS N", "DBS %",
+                              "VBS N", "VBS %")
+            print(tab2)
+            print(chisq.test(tab1))
+            fisher.test(tab1, simulate.p.value = T)
+}
+```
+
+
+#### 3.1 PCR and other available tests:
+
+```{r}
+# A small subset including hosp, PCR & Vaccination time
+CLSA_Time<-CLSA_Antibody %>%
+  select(entity_id, start_datetime_COV, SER_HOSP_COV: SER_TEST20_COV, # Hosp, Test, Date
+         SER_VAC_COV : SER_DOSE3_DATE_COV                             # Vacc dates
+         )
+```
+
+Using CLSA_Antibody data for PCR test results
+
+```{r}
+table(CLSA_Time$SER_TEST_COV, useNA = 'ifany')
+# Only 5637 of 19934 have been tested for PCR
+
+# we have 20 variables record the results of PCR tests
+# another 20 slots are for dates
+table(CLSA_Time$SER_RSLT1_COV, useNA = 'ifany')
+table(CLSA_Time$SER_RSLT5_COV, useNA = 'ifany')
+table(CLSA_Time$SER_RSLT10_COV, useNA = 'ifany')
+table(CLSA_Time$SER_RSLT15_COV, useNA = 'ifany')
+table(CLSA_Time$SER_RSLT19_COV, useNA = 'ifany')
+table(CLSA_Time$SER_RSLT20_COV, useNA = 'ifany')
+
+# If test result is not zero, delete the date
+CLSA_Time$SER_TEST1_COV[!(CLSA_Time$SER_RSLT1_COV==1)]<-NA
+CLSA_Time$SER_TEST2_COV[!(CLSA_Time$SER_RSLT2_COV==1)]<-NA
+CLSA_Time$SER_TEST3_COV[!(CLSA_Time$SER_RSLT3_COV==1)]<-NA
+CLSA_Time$SER_TEST4_COV[!(CLSA_Time$SER_RSLT4_COV==1)]<-NA
+CLSA_Time$SER_TEST5_COV[!(CLSA_Time$SER_RSLT5_COV==1)]<-NA
+
+CLSA_Time$SER_TEST6_COV[!(CLSA_Time$SER_RSLT6_COV==1)]<-NA
+CLSA_Time$SER_TEST7_COV[!(CLSA_Time$SER_RSLT7_COV==1)]<-NA
+CLSA_Time$SER_TEST8_COV[!(CLSA_Time$SER_RSLT8_COV==1)]<-NA
+CLSA_Time$SER_TEST9_COV[!(CLSA_Time$SER_RSLT9_COV==1)]<-NA
+CLSA_Time$SER_TEST10_COV[!(CLSA_Time$SER_RSLT10_COV==1)]<-NA
+
+CLSA_Time$SER_TEST11_COV[!(CLSA_Time$SER_RSLT11_COV==1)]<-NA
+CLSA_Time$SER_TEST12_COV[!(CLSA_Time$SER_RSLT12_COV==1)]<-NA
+CLSA_Time$SER_TEST13_COV[!(CLSA_Time$SER_RSLT13_COV==1)]<-NA
+CLSA_Time$SER_TEST14_COV[!(CLSA_Time$SER_RSLT14_COV==1)]<-NA
+CLSA_Time$SER_TEST15_COV[!(CLSA_Time$SER_RSLT15_COV==1)]<-NA
+
+CLSA_Time$SER_TEST16_COV[!(CLSA_Time$SER_RSLT16_COV==1)]<-NA
+CLSA_Time$SER_TEST17_COV[!(CLSA_Time$SER_RSLT17_COV==1)]<-NA
+CLSA_Time$SER_TEST18_COV[!(CLSA_Time$SER_RSLT18_COV==1)]<-NA
+CLSA_Time$SER_TEST19_COV[!(CLSA_Time$SER_RSLT19_COV==1)]<-NA
+CLSA_Time$SER_TEST20_COV[!(CLSA_Time$SER_RSLT20_COV==1)]<-NA
+
+# correct the format to Date
+CLSA_Time$start_datetime_COV<-as.Date((CLSA_Time$start_datetime_COV), format="%Y-%m-%d")
+CLSA_Time$SER_TEST1_COV<-as.Date((CLSA_Time$SER_TEST1_COV), format="%Y-%m-%d")
+CLSA_Time$SER_TEST2_COV<-as.Date((CLSA_Time$SER_TEST2_COV), format="%Y-%m-%d")
+CLSA_Time$SER_TEST3_COV<-as.Date((CLSA_Time$SER_TEST3_COV), format="%Y-%m-%d")
+CLSA_Time$SER_TEST4_COV<-as.Date((CLSA_Time$SER_TEST4_COV), format="%Y-%m-%d")
+CLSA_Time$SER_TEST5_COV<-as.Date((CLSA_Time$SER_TEST5_COV), format="%Y-%m-%d")
+
+CLSA_Time$SER_TEST6_COV<-as.Date((CLSA_Time$SER_TEST6_COV), format="%Y-%m-%d")
+CLSA_Time$SER_TEST7_COV<-as.Date((CLSA_Time$SER_TEST7_COV), format="%Y-%m-%d")
+CLSA_Time$SER_TEST8_COV<-as.Date((CLSA_Time$SER_TEST8_COV), format="%Y-%m-%d")
+CLSA_Time$SER_TEST9_COV<-as.Date((CLSA_Time$SER_TEST9_COV), format="%Y-%m-%d")
+CLSA_Time$SER_TEST10_COV<-as.Date((CLSA_Time$SER_TEST10_COV), format="%Y-%m-%d")
+
+CLSA_Time$SER_TEST11_COV<-as.Date((CLSA_Time$SER_TEST11_COV), format="%Y-%m-%d")
+CLSA_Time$SER_TEST12_COV<-as.Date((CLSA_Time$SER_TEST12_COV), format="%Y-%m-%d")
+CLSA_Time$SER_TEST13_COV<-as.Date((CLSA_Time$SER_TEST13_COV), format="%Y-%m-%d")
+CLSA_Time$SER_TEST14_COV<-as.Date((CLSA_Time$SER_TEST14_COV), format="%Y-%m-%d")
+CLSA_Time$SER_TEST15_COV<-as.Date((CLSA_Time$SER_TEST15_COV), format="%Y-%m-%d")
+
+CLSA_Time$SER_TEST16_COV<-as.Date((CLSA_Time$SER_TEST16_COV), format="%Y-%m-%d")
+CLSA_Time$SER_TEST17_COV<-as.Date((CLSA_Time$SER_TEST17_COV), format="%Y-%m-%d")
+CLSA_Time$SER_TEST18_COV<-as.Date((CLSA_Time$SER_TEST18_COV), format="%Y-%m-%d")
+CLSA_Time$SER_TEST19_COV<-as.Date((CLSA_Time$SER_TEST19_COV), format="%Y-%m-%d")
+CLSA_Time$SER_TEST20_COV<-as.Date((CLSA_Time$SER_TEST20_COV), format="%Y-%m-%d")
+
+
+# now find the last day of positive PCR test:
+CLSA_Time<-CLSA_Time %>% 
+  rowwise() %>%
+  mutate(PCR_DATE_last = max(SER_TEST1_COV, SER_TEST2_COV, SER_TEST3_COV,
+                             SER_TEST4_COV, SER_TEST5_COV, SER_TEST6_COV,
+                             SER_TEST7_COV, SER_TEST8_COV, SER_TEST9_COV,
+                             SER_TEST10_COV, SER_TEST11_COV, SER_TEST12_COV,
+                             SER_TEST13_COV, SER_TEST14_COV, SER_TEST15_COV,
+                             SER_TEST16_COV, SER_TEST17_COV, SER_TEST18_COV,
+                             SER_TEST19_COV, SER_TEST20_COV, na.rm = T))
+
+# if all NAs, max()
+CLSA_Time$PCR_DATE_last[is.infinite(CLSA_Time$PCR_DATE_last)==T]<-NA
+summary(CLSA_Time$PCR_DATE_last)
+
+# Calculate time since last PCR+ test
+CLSA_Time$pcr_time<-CLSA_Time$start_datetime_COV - CLSA_Time$PCR_DATE_last
+
+# Add pcr_time to com50 data
+CLSA_com50<-merge(CLSA_com50, select(CLSA_Time, entity_id, pcr_time), by='entity_id',
+      all.x = T, all.y = F)
+```
+
+Numbers of PCR+ tests
+
+```{r}
+if_else2<-function(x){
+  if_else(x==1,1,0)
+}
+
+# Number of all PCR+ tests  
+CLSA_Temp<-CLSA_Time %>%
+  select(SER_RSLT1_COV : SER_RSLT20_COV) %>%
+  mutate_all(., if_else2)
+
+CLSA_Time$SER_RSLT_SUM<-rowSums(select(CLSA_Temp, SER_RSLT1_COV : SER_RSLT20_COV),na.rm = T)
+table(CLSA_Time$SER_RSLT_SUM, useNA = 'ifany')
+
+# Make it binary
+CLSA_Time$SER_RSLT_SUM_bin<-rep(0, 19334)
+CLSA_Time$SER_RSLT_SUM_bin[CLSA_Time$SER_RSLT_SUM %in% c(1,2,5)]<-1
+table(CLSA_Time$SER_RSLT_SUM_bin, CLSA_Time$SER_RSLT_SUM, useNA = 'ifany')
+
+CLSA_Time$SER_RSLT_SUM_bin15<-rep(0, 19334)
+CLSA_Time$SER_RSLT_SUM_bin15[CLSA_Time$pcr_time>15 &
+                             is.na(CLSA_Time$pcr_time)==F]<-1
+table(CLSA_Time$SER_RSLT_SUM_bin15, CLSA_Time$SER_RSLT_SUM, useNA = 'ifany')
+
+# Merge those new variables to com50
+CLSA_com50<-merge(CLSA_com50, select(CLSA_Time, entity_id, SER_RSLT_SUM, 
+                                     SER_RSLT_SUM_bin, SER_RSLT_SUM_bin15),
+                  by='entity_id', all.x = T, all.y = F)
+table(CLSA_com50$SER_RSLT_SUM_bin15, CLSA_com50$SER_RSLT_SUM, useNA = 'ifany')
+
+save(CLSA_com50, file = '~/dbs-vs-venous-antibodies/1_data/private/CLSA_com50.RData')
+```
+#### 3.2 Vaccination Info （CLSA_Antibody Data）
+
+```{r}
+CLSA_Antibody %>%
+  .[.$SER_TEST_COV>=1,] %>%
+  select(., entity_id, SER_AGE_COV, SER_SEX_COV, start_datetime_COV,
+         SER_HOSP_COV, SER_TEST_COV, SER_TEST_NB_COV, SER_RSLT1_COV,
+         SER_RSLT2_COV, SER_RSLT3_COV, SER_TEST1_COV, SER_TEST2_COV,
+         SER_TEST3_COV
+) # Looks good
+
+# Do vaccination date first
+table(CLSA_Time$SER_VAC_COV, useNA = 'ifany')          # have you received at least one dose?
+table(CLSA_Time$SER_VDOSE_COV, useNA = 'ifany')        # number of dose received
+
+table(CLSA_Time$SER_VAC_COV, CLSA_Time$SER_VDOSE_COV, useNA = 'ifany')
+
+# Clean the dose date data
+CLSA_Time$SER_DOSE1_DATE_COV<-as.Date((CLSA_Time$SER_DOSE1_DATE_COV), format="%Y-%m-%d")
+CLSA_Time$SER_DOSE2_DATE_COV<-as.Date((CLSA_Time$SER_DOSE2_DATE_COV), format="%Y-%m-%d")
+CLSA_Time$SER_DOSE3_DATE_COV<-as.Date((CLSA_Time$SER_DOSE3_DATE_COV), format="%Y-%m-%d")
+CLSA_Time$start_datetime_COV<-as.Date((CLSA_Time$start_datetime_COV), format="%Y-%m-%d")
+
+CLSA_Time<-CLSA_Time %>% 
+  rowwise() %>%
+  mutate(DOSE_DATE_last = max(SER_DOSE1_DATE_COV, SER_DOSE2_DATE_COV,
+                              SER_DOSE3_DATE_COV, na.rm = T))
+CLSA_Time$DOSE_DATE_last[is.infinite(CLSA_Time$DOSE_DATE_last)==T]<-NA
+summary(CLSA_Time$DOSE_DATE_last)
+
+# number of days since last vaccinatiion
+CLSA_Time<-CLSA_Time %>%
+  mutate(time_vac = start_datetime_COV - DOSE_DATE_last)
+
+summary(as.numeric(CLSA_Time$time_vac))
+hist(as.numeric(CLSA_Time$time_vac), breaks = 40,
+     xlab = 'Time Since Last Vaccination (Days)')
+
+# show those with negative, N=19 
+time_vac_neg<-CLSA_Time %>%
+  .[as.numeric(.$time_vac)<0 & is.na(.$time_vac)==F &
+    .$SER_VDOSE_COV>1,] %>%
+  select(entity_id, start_datetime_COV, DOSE_DATE_last, SER_VDOSE_COV, time_vac)
+# All those with negative and multiple vac date have two doses, most 1st dose time missing
+
+# Replace those with 2 doses and neg vac_time
+CLSA_Time %>%
+  .[.$entity_id %in% time_vac_neg$entity_id,] %>%
+  mutate(time_vac = start_datetime_COV - SER_DOSE1_DATE_COV)
+CLSA_Time$time_vac[CLSA_Time$entity_id==44259476]<-24
+CLSA_Time$time_vac[CLSA_Time$entity_id==51191412]<-34
+CLSA_Time$time_vac[CLSA_Time$entity_id==58376055]<-41
+
+# Then code the rest of vaccination time to 0
+CLSA_Time$time_vac[as.numeric(CLSA_Time$time_vac)<0]<-NA
+
+# if vac_time > 15, vaccines takes ~ 15 days to boost immunity and elevate Ab level
+CLSA_Time$time_vac15 <- rep(0,19334)
+CLSA_Time$time_vac15[CLSA_Time$time_vac>15 & CLSA_Time$time_vac<365]<-1
+```
+
+merge time_vac15 to com50 cohort data:
+
+```{r}
+CLSA_com50<-merge(CLSA_com50, select(CLSA_Time, entity_id, time_vac, time_vac15), by='entity_id',
+      all.x = T, all.y = F)
+
+table(CLSA_com50$time_vac15, useNA = 'ifany')
+proptable_chisq2(CLSA_com50$time_vac15)
+
+save(CLSA_com50, file = '~/dbs-vs-venous-antibodies/1_data/private/CLSA_com50.RData')
+```
+
+Histogram: using comprehensive cohort (\<50 km)
+
+```{r}
+hist(as.numeric(CLSA_com50$time_vac), breaks = 40,
+     xlab = 'Time Since Last Vaccination (Days)',
+     main = "Distribution of Time Since Last Vaccination, 
+             Comprehensive Cohort < 50km")
+```
+
+#### 3.4 Geographic Regions: five groups:
+
+```{r}
+#  BC, (AB+SK+MT), ON, QC, (All Atlantic provinces in the east)
+table(CLSA_com50$PROV_COVID, useNA = 'ifany')
+# Not all 10 provinces from CLSA dataset were included, only 7 of them
+
+CLSA_com50$PROV_5<-rep(0, length(CLSA_com50$PROV_COVID))
+CLSA_com50$PROV_5[CLSA_com50$PROV_COVID %in% c(10, 12)]<-1
+CLSA_com50$PROV_5[CLSA_com50$PROV_COVID %in% c(24)]<-2
+CLSA_com50$PROV_5[CLSA_com50$PROV_COVID %in% c(35)]<-3
+CLSA_com50$PROV_5[CLSA_com50$PROV_COVID %in% c(46,48)]<-4
+CLSA_com50$PROV_5[CLSA_com50$PROV_COVID %in% c(59)]<-5
+
+# Add format
+CLSA_com50$PROV_5 = factor(CLSA_com50$PROV_5,levels=c("1","2","3","4","5"))
+levels(CLSA_com50$PROV_5)=c("1 = NF & NS","2 = QC","3 = ON","4 = MT & AB","5 = BC")
+Hmisc::label(CLSA_com50$PROV_5)="Prov Group"
+
+# Cross Tabulation to Verify
+table(CLSA_com50$PROV_5, CLSA_com50$PROV_COVID, useNA = 'ifany')
+```
+
+#### 3.5 Time since last outbreak
+
+```{r}
+# Time of sample collection, need to get it from CLSA_Time 
+CLSA_com50<-merge(CLSA_com50, select(CLSA_Time, entity_id, start_datetime_COV), 
+      by = 'entity_id', all.x=T, all.y = F)
+
+summary(CLSA_com50$start_datetime_COV)
+table(is.na(CLSA_com50$start_datetime_COV), useNA='ifany')
+# 2020/10/29 - 2021/08/18
+
+# Period when >50 7-day-ave daily new cases (WHO)
+# https://ourworldindata.org/covid-cases
+
+CLSA_com50$outbreak<-rep(NA, 7230)
+CLSA_com50$outbreak<-ifelse(CLSA_com50$start_datetime_COV > as.Date('2021-06-21', format="%Y-%m-%d"), 0, 1)
+
+table(CLSA_com50$outbreak, useNA = 'ifany')
+# 0 = 15 days ago not in outbreak
+# 1 = 15 days ago in outbreak
+
+proptable_chisq2(CLSA_com50$outbreak)
+```
+#### To make the ggplotting much easier, adding formats and labels
+
+```{r}
+# Add Format
+
+# urban/rural
+CLSA_com50$URBAN_RURAL_COVID = as.factor(CLSA_com50$URBAN_RURAL_COVID)
+levels(CLSA_com50$URBAN_RURAL_COVID)=c("0 = Rural","1 = Urban Core",
+                                       "2 = Urban Fringe",
+                                       "4 = Urban out CMA/CAs",
+                                       "6 = 2nd urban core",
+                                       "9 = DA only")
+
+# Race/eth
+CLSA_com50$SER_ETHN_WH_COV[CLSA_com50$SER_ETHN_WH_COV==-88888]<-NA
+CLSA_com50$SER_ETHN_WH_COV = as.factor(CLSA_com50$SER_ETHN_WH_COV)
+levels(CLSA_com50$SER_ETHN_WH_COV)=c("0 = Non-WH", "1=WH")
+
+# Education
+table(CLSA_com50$SER_EDU_COV, useNA = 'ifany')
+CLSA_com50$SER_EDU_COV = as.factor(CLSA_com50$SER_EDU_COV)
+levels(CLSA_com50$SER_EDU_COV)=c("1 = <High School", "2 = High School",
+                                     "3 = Vocational Tr", "4 = Non-uni cert",
+                                     "5 = Bachelor", "6 = Graduate")
+
+# Vaccination Status
+table(CLSA_com50$time_vac15, useNA = 'ifany')
+CLSA_com50$time_vac15 <- as.factor(CLSA_com50$time_vac15)
+levels(CLSA_com50$time_vac15)=c("0 = No", "1 = Yes")
+
+# Outbreak
+table(CLSA_com50$outbreak, useNA = 'ifany')
+CLSA_com50$outbreak <- as.factor(CLSA_com50$outbreak)
+levels(CLSA_com50$outbreak)=c("0 = No", "1 = Yes")
+```
+
+```{r}
+# Labels, from {Hmisc} pak
+Hmisc::label(CLSA_com50$AGE_NMBR_COVID)="Age"
+Hmisc::label(CLSA_com50$SEX_CLSA)="Sex"
+Hmisc::label(CLSA_com50$URBAN_RURAL_COVID)="Urban/Rural"
+Hmisc::label(CLSA_com50$SER_EDU_COV)="Education"
+Hmisc::label(CLSA_com50$SER_ETHN_WH_COV)="Race Binary"
+Hmisc::label(CLSA_com50$DEP_CESD10_COVX)="Dep Scale"
+Hmisc::label(CLSA_com50$dist_min)='Travel Dist'
+Hmisc::label(CLSA_com50$time_vac15)='Vax over 15 Days'
+Hmisc::label(CLSA_com50$outbreak)="Outbreak Peaks"
+Hmisc::label(CLSA_com50$PROV_5)="Prov Group"
+```
+
+## 4. Recode variables for better-looking figures 
+```{r}
+# How many do we have in each group?
+table(CLSA_com50$PROV_5, useNA = 'ifany')
+
+# Additional Editing on CLSA_com50 data, merge all other non-urban core categories to one
+# Explanation on core, fringe and 2nd core: https://www150.statcan.gc.ca/n1/pub/92-195-x/2011001/geo/rur/rur-eng.htm
+
+table(CLSA_com50$URBAN_RURAL_COVID, useNA = 'ifany')
+CLSA_com50$urban_rural<-as.numeric(CLSA_com50$URBAN_RURAL_COVID)
+CLSA_com50$urban_rural[CLSA_com50$urban_rural %in% c(3,4,5,6)]<-3
+
+## Add labels and formats
+Hmisc::label(CLSA_com50$urban_rural)<-"Urban/Rural: 3 cate"
+CLSA_com50$urban_rural = CLSA_com50$urban_rural-1
+CLSA_com50$urban_rural<-as.factor(CLSA_com50$urban_rural)
+levels(CLSA_com50$urban_rural)=c("0 = Rural","1 = Urban Core",
+                                       "2 = Urban Others")
+
+table(CLSA_com50$URBAN_RURAL_COVID, CLSA_com50$urban_rural, useNA = 'ifany')
+
+# Traveling dist, divide by 25km (OR ~ 25km+ in distance)
+CLSA_com50$dist_min_25km<-CLSA_com50$dist_min/(25*1000)
+hist(CLSA_com50$dist_min_25km)
+
+# age - per 10 yr
+CLSA_com50$age10<-CLSA_com50$AGE_NMBR_COVID/10             
+
+# Add a 3-category time variable
+CLSA_com50$time_3cat[CLSA_com50$start_datetime_COV<as.Date("2021-04-01")]<-"Pre_April 21"
+CLSA_com50$time_3cat[CLSA_com50$start_datetime_COV>=as.Date("2021-04-01") &
+                        CLSA_com50$start_datetime_COV<=as.Date("2021-05-31")]<-"April_May 21"
+CLSA_com50$time_3cat[CLSA_com50$start_datetime_COV>as.Date("2021-05-31")]<-"June_Aug 21"
+```
+
+
+# Save the dataset
+
+```{r}
+# Remove unnecessary time data
+rm(CLSA_Temp, CLSA_Time)
+
+save(CLSA_com50, file = '../1_data/private/CLSA_com50.RData')
+```
+
+
+

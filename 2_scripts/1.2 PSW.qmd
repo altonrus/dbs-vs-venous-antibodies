@@ -1,5 +1,5 @@
 ---
-title: "1.3.2 Addition Analysis Suggested by Jane"
+title: "1.2 Propensity Score Weighting"
 format: html
 editor: visual
 ---
@@ -10,103 +10,272 @@ Quarto enables you to weave together content and executable code into a finished
 
 ## Running Code
 
-The aim of this file is to redo the analysis (propensity score weighting) in 1.3, as it suggested by Jane, Amber and Mogan during the meeting on 30 Oct 2023.
-
-Also, at the end of those markdown file we added some experimental parts, those parts should not be published.
-
 ## Load Packages
 
 ```{r}
-library(dplyr)         # Pak for data management
-library(WeightIt)      # Pak for Propensity Score Weighting
-library(lmtest)        # Pak for LRT
-library(cobalt)        # bal.tab() for imbalance tab
-library(ggplot2)       # for ggplot()
+library(dplyr)        # Pak for data management
+library(WeightIt)     # Pak for PSW
+library(lmtest)       # Pak for LRT
+library(dgof)         # k.s test
+library(spatstat)     # for weighted cdf function
+library(zoo)          # for month/data format
 ```
 
 ## Load Dataset
 
 ```{r}
-# CLSA comprehensive cohort: N=7678, this data includes those lives > 50km to DCS
+# CLSA comprehensive cohort: N=7678 
 load(file='../1_data/private/CLSA_mncom.RData')
 
 # CLSA comprehensive cohort: N=7230
 load(file='../1_data/private/CLSA_com50.RData')
 ```
 
-## ========================= Part I. The Unweighted Data ================
+# ===================== Part I. Propensity Score Weighting ==================
 
+## 1.1 Calculate weights using IPTW
+
+#### Create a clean dataset for PSW models
 ```{r}
-# How many do we have in each group?
-table(CLSA_com50$PROV_5, useNA = 'ifany')
-
-# Additional Editing on CLSA_com50 data, merge all other non-urban core categories to one
-# Explanation on core, fringe and 2nd core: https://www150.statcan.gc.ca/n1/pub/92-195-x/2011001/geo/rur/rur-eng.htm
-
-table(CLSA_com50$URBAN_RURAL_COVID, useNA = 'ifany')
-CLSA_com50$urban_rural<-as.numeric(CLSA_com50$URBAN_RURAL_COVID)
-CLSA_com50$urban_rural[CLSA_com50$urban_rural %in% c(3,4,5,6)]<-3
-# CLSA_com50$urban_rural[CLSA_com50$urban_rural %in% c(2,4,6,9)]<-2
-
-## Add labels and formats
-Hmisc::label(CLSA_com50$urban_rural)<-"Urban/Rural: 3 cate"
-#CLSA_com50$urban_rural = CLSA_com50$urban_rural-1
-CLSA_com50$urban_rural<-as.factor(CLSA_com50$urban_rural)
-levels(CLSA_com50$urban_rural)=c("0 = Rural","1 = Urban Core",
-                                       "2 = Urban Others")
-
-table(CLSA_com50$URBAN_RURAL_COVID, CLSA_com50$urban_rural, useNA = 'ifany')
-
-# Clean missings in dep
-CLSA_com50$DEP_CESD10_COVX[CLSA_com50$DEP_CESD10_COVX==-88881]<-NA
-table(CLSA_com50$DEP_CESD10_COVX, useNA = 'ifany') #-88881 recoded as NA
-
-## Recode variables, make them looks better in the figure
-
-# Traveling dist, divide by 25km (OR ~ 25km+ in distance)
-CLSA_com50$dist_min_25km<-CLSA_com50$dist_min_km/25
-hist(CLSA_com50$dist_min_25km)
-
-
-# Incidence, divide it by 10, make it OR~1+ in per 100,000 people
-CLSA_com50$avginc10_15d<-CLSA_com50$avgincidence_last7/10
-hist(CLSA_com50$avginc10_15d)
-
-
-save(CLSA_com50, file = "../1_data/private/CLSA_com50.RData")
-```
-
-```{r}
-# create clean dataset .c6
 CLSA_com50.c6<-CLSA_com50 %>%
-  dplyr::select(SER_ADM_COV, AGE_NMBR_COVID , age10, SEX_CLSA ,
-            URBAN_RURAL_COVID, urban_rural,
+  dplyr::select(SER_ADM_COV, AGE_NMBR_COVID , age10,
+            SEX_CLSA , start_datetime_COV,
+            URBAN_RURAL_COVID , urban_rural,
             SER_ETHN_WH_COV  ,
             SER_EDU_COV ,
             DEP_CESD10_COVX ,
             dist_min , dist_min_25km,
-            time_vac15,
-            PROV_5, outbreak, avgincidence_last7, avginc10_15d, time_3cat,
+            time_vac15, time_3cat,
+            PROV_5, outbreak,
             SER_NUCLEOCAPSID_COV, SER_SPIKE_COV, SPIKE_ANTIBODY)
-
-CLSA_com50.c6<-CLSA_com50.c6 %>% 
-  tidyr::drop_na()
-save(CLSA_com50.c6, file = "../1_data/private/CLSA_com50.c6.RData") #N=6174
-
-# Creating subset for each prov, using clean version of the data
-CLSA_com50.ATL<-CLSA_com50.c6 %>%
-  .[as.numeric(.$PROV_5)==1,]      # N=1161
-CLSA_com50.QC<-CLSA_com50.c6 %>%
-  .[as.numeric(.$PROV_5)==2,]      # N=1186
-CLSA_com50.ON<-CLSA_com50.c6 %>%
-  .[as.numeric(.$PROV_5)==3,]      # N=1397
-CLSA_com50.MTAB<-CLSA_com50.c6 %>%
-  .[as.numeric(.$PROV_5)==4,]      # N=1180
-CLSA_com50.BC<-CLSA_com50.c6 %>%
-  .[as.numeric(.$PROV_5)==5,]      # N=1250
+CLSA_com50.c6<-na.omit(CLSA_com50.c6)
 ```
 
-#### 1.1 ATL provinces - NFL & NS
+#### PSW
+```{r}
+w.01 <- weightit(SER_ADM_COV~age10 + SEX_CLSA +
+                             urban_rural +
+                             SER_ETHN_WH_COV  +
+                             SER_EDU_COV +
+                             DEP_CESD10_COVX +
+                             dist_min_25km +
+                             time_vac15 +
+                             PROV_5 + time_3cat, 
+            data=CLSA_com50.c6, estimand = 'ATE', method = 'glm')
+summary(w.01)
+
+# add weights to data
+CLSA_com50.c6$w.weights<-w.01$weights
+```
+
+## 1.2. Analyze weighted data
+
+#### Anti-N&S positivity
+
+```{r}
+lmm.06.N<-glm(SER_NUCLEOCAPSID_COV~SER_ADM_COV,
+           data=CLSA_com50.c6, family = binomial(link = "logit"),
+           weights = w.weights)
+# ummary(psw.06.N)
+
+lmm.06.N %>%
+  gtsummary::tbl_regression(exponentiate = T)
+# OR=3.56 (2.97-4.29)
+
+# OR of anti-S positive
+lmm.06.S<-glm(SER_SPIKE_COV~SER_ADM_COV,
+              data=CLSA_com50.c6, family = binomial(link = "logit"),
+              weights = w.weights)
+lmm.06.S %>%
+  gtsummary::tbl_regression(exponentiate = T)
+# OR=1.43 (1.33-1.54)
+```
+
+## ======== Part.II Making Plots and Tables =============
+
+## 2.1 Figure 1: Weighted eCDF
+
+#### Weighted ecdf, using IPTW weights
+```{r}
+# We used the ewcdf() from {spatstat} package
+table(CLSA_com50.c6$SER_ADM_COV, CLSA_com50.c6$SER_SPIKE_COV)
+
+# DBS with Spike+, N=1816
+wecdf_S_DBS<-CLSA_com50.c6 %>%
+  .[.$SER_SPIKE_COV==1 & .$SER_ADM_COV==0,] %>%
+  .$SPIKE_ANTIBODY
+
+# VBS with Spike+, N=1572
+wecdf_S_VBS<-CLSA_com50.c6 %>%
+  .[.$SER_SPIKE_COV==1 & .$SER_ADM_COV==1,] %>%
+  .$SPIKE_ANTIBODY
+```
+
+##### Make and print the plot
+```{r}
+png(file="~/dbs-vs-venous-antibodies/3_intermediate/Fig.1 Weighted eCDF Anti-S.png", 
+    width=1600, height=1200, res=300)
+plot(ewcdf(wecdf_S_DBS,
+           weights=CLSA_com50.c6$w.weights[CLSA_com50.c6$SER_ADM_COV==0 &
+                                          CLSA_com50.c6$SER_SPIKE_COV==1]),
+     xlim = c(0.4,2500),
+     log='x',
+     xaxt = 'n',
+     col = "blue",
+     main= NULL,
+     xlab = 'Quant Anti-S Assay Results')
+plot(ewcdf(wecdf_S_VBS,
+          weights=CLSA_com50.c6$w.weights[CLSA_com50.c6$SER_ADM_COV==1 &
+                                          CLSA_com50.c6$SER_SPIKE_COV==1]),
+     add = TRUE,
+     lwd=2,
+     col = "red")
+axis(side=1, at=c(-0.4, 0, 1, 10, 100, 1000))
+legend("bottomright", legend = c("DBS", "VBS"),
+       lwd = 3, col = c("blue", "red"))
+dev.off()
+```
+## 2.2 The regression model: Best-fit Model
+```{r}
+# Beware we apply the model here to the original CLSA data (N=7230) instead of the complete cases only version (.c6, N=6174). This would allow us to utilize more records in the model.
+lm06.t <- glm(SER_ADM_COV ~ age10 + 
+            urban_rural +
+            relevel(SER_ETHN_WH_COV, ref='1=WH')  +
+            SER_EDU_COV +
+            DEP_CESD10_COVX +
+            dist_min_25km +
+            time_vac15 +
+            relevel(PROV_5, ref='5 = BC') + time_3cat, 
+            data=CLSA_com50,
+            family = binomial(link='logit'))
+summary(lm06.t)
+
+gtsummary::tbl_regression(lm06.t, exponentiate = T)
+```
+
+## 2.3 Bivariate analysis
+
+#### Build Simple OR for each variable
+```{r}
+# Build a function for simple regression and OR
+simple_reg_OR<-function(v){
+ lm_temp<-glm(SER_ADM_COV~v, data=CLSA_com50,
+             family = binomial(link='logit'))
+ print(summary(lm_temp))
+ gtsummary::tbl_regression(lm_temp, exponentiate = T)
+}
+
+simple_reg_OR.w<-function(v){
+ lm_temp<-glm(SER_ADM_COV~v, data=CLSA_com50.c6,
+             family = binomial(link='logit'), weights = CLSA_com50.c6$w.weights)
+ print(summary(lm_temp))
+ gtsummary::tbl_regression(lm_temp, exponentiate = T)
+}
+
+# test using age (10-year scale)
+simple_reg_OR(CLSA_com50$age10) # Looks good
+simple_reg_OR.w(CLSA_com50.c6$age10) # Looks good
+```
+
+#### Add other variables, for unadjusted OR calculation
+```{r}
+simple_reg_OR(CLSA_com50$SEX_CLSA)                            # Sex
+
+simple_reg_OR(CLSA_com50$urban_rural)                         # Rural/Urban, 3cate
+
+simple_reg_OR(relevel(CLSA_com50$SER_ETHN_WH_COV, ref='1=WH'))# WH/Non-WH
+
+simple_reg_OR(CLSA_com50$SER_EDU_COV)                         # Education
+
+simple_reg_OR(CLSA_com50$DEP_CESD10_COVX)                     # Dep Scale
+
+simple_reg_OR(CLSA_com50$dist_min_25km)                       # Travel Dist
+
+simple_reg_OR(CLSA_com50$time_vac15)                          # Vax>15 Days?
+
+simple_reg_OR(relevel(CLSA_com50$PROV_5, ref='5 = BC'))       # Prov, ref=BC
+
+simple_reg_OR(CLSA_com50$time_3cat)                        # Time_3cat
+```
+
+#### Add bivariate analysis using weighted data
+
+```{r}
+simple_reg_OR.w(CLSA_com50.c6$SEX_CLSA)                            # Sex
+
+simple_reg_OR.w(CLSA_com50.c6$urban_rural)                         # Rural/Urban, 3cate
+
+simple_reg_OR.w(relevel(CLSA_com50.c6$SER_ETHN_WH_COV, ref='1=WH'))# WH/Non-WH
+
+simple_reg_OR.w(CLSA_com50.c6$SER_EDU_COV)                         # Education
+
+simple_reg_OR.w(CLSA_com50.c6$DEP_CESD10_COVX)                     # Dep Scale
+
+simple_reg_OR.w(CLSA_com50.c6$dist_min_25km)                       # Travel Dist
+
+simple_reg_OR.w(CLSA_com50.c6$time_vac15)                          # Vax>15 Days?
+
+simple_reg_OR.w(relevel(CLSA_com50.c6$PROV_5, ref='5 = BC'))       # Prov, ref=BC
+
+simple_reg_OR.w(CLSA_com50.c6$time_3cat)                           # Time_3cat
+
+```
+## 2.4 Make OR table
+
+#### Import the OR table
+```{r}
+# This OR table is created outside of R manually, by filling the ORs from model.06p and those from simple logistic regression models above.
+library(readxl)
+OR_import <- read_excel("~/dbs-vs-venous-antibodies/3_intermediate/OR_import.xlsx",
+                        sheet = "Reg")
+OR_import$Adj<-as.factor(OR_import$Adj)
+
+# Edit the data, add sig indicator
+OR_import$alpha <- rep(1, length(OR_import$group))
+OR_import$alpha[(OR_import$lower <1 & OR_import$higher <1) |
+            (OR_import$lower >1 & OR_import$higher >1)]<-0
+OR_import$alpha<-as.factor(OR_import$alpha)
+levels(OR_import$alpha)=c("Significant","Insignificant")
+
+
+g01<-ggplot(OR_import, aes(x = OR, y = group)) + 
+    geom_vline(aes(xintercept = 1), size = .75, linetype = "dashed",color='red')+
+    geom_errorbarh(aes(xmax = higher, xmin = lower, color=Adj, linetype=alpha),
+                       position = position_dodge(width = 1.0),
+                       linewidth = .5, height = .5) +
+    geom_point(size = 2, aes(colour=Adj,  shape=alpha),
+               position = position_dodge(width = 1.0))+
+    scale_shape_manual(values=c(16, 1))+
+    theme_bw()+
+    theme(plot.background = element_blank(),
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          panel.border = element_blank(),
+          legend.title = element_blank(),
+          axis.title.y = element_blank()
+          ) +
+  labs(x = "Odds ratio (>1 indicates propensity for in-person venous sample)")
+
+# Plot is good, but needs to add shadows for aesthetic purposes 
+```
+
+#### Applying GG forest
+
+```{r}
+# Load this package first
+devtools::install_github("NightingaleHealth/ggforestplot")
+library(ggforestplot) #From Github, not in pak tab but you can load it
+
+# Add shadows and save the plot
+png(file="~/dbs-vs-venous-antibodies/3_intermediate/Fig.S3 OR Plot.png", 
+    width=2400, height=1440, res=300)
+g01+geom_stripes(odd = "#33333333", even = "#00000000")+
+   scale_color_brewer(palette="Set1") 
+dev.off()
+```
+## 2.5 OR table by Provinces
+
+#### 2.5.1 ATL provinces - NFL & NS
 
 ##### Propensity Score Weighting
 
@@ -123,18 +292,7 @@ w.ATL <- weightit(SER_ADM_COV~age10 + SEX_CLSA +
 summary(w.ATL)
 ```
 
-Take a look at the weights distribution
-
-```{r}
-# The balance table, from {obalt} pak
-bal.tab(w.ATL, stats = c("m", "v"), 
-                thresholds = c(m = .05, v=1.96), 
-                un=T, continuous = "std") # looks good, balance reached
-bal.plot(w.ATL,  which = 'both') # dist of propensity score
-```
-
 ##### Analysis based on weighted data
-
 ```{r}
 # Add weights back to data
 CLSA_com50.ATL$w.weights<-w.ATL$weights
@@ -154,7 +312,7 @@ lmm.ATL.S %>%
   gtsummary::tbl_regression(exponentiate = T)
 ```
 
-#### 1.2 Quebec - For some reason people here prefer DBS more than VBS
+#### 2.5.2 Quebec - For some reason people here prefer DBS more than VBS
 
 ##### PSW
 
@@ -173,36 +331,9 @@ w.QC <- weightit(SER_ADM_COV~age10 + SEX_CLSA +
                              time_vac15 + time_3cat, 
             data=CLSA_com50.QC, estimand = 'ATE', method = 'glm')
 summary(w.QC)
-
-w.QC.bal <- weightit(SER_ADM_COV~age10 + SEX_CLSA +
-                             urban_rural +
-                             SER_ETHN_WH_COV  +
-                             SER_EDU_COV +
-                             DEP_CESD10_COVX +
-                             dist_min_25km +
-                             time_vac15 + time_3cat, 
-            data=CLSA_com50.QC, estimand = 'ATE', method = 'ebal')
-summary(w.QC.bal)
-```
-
-Take a look at the weights distribution
-
-```{r}
-# The balance table, from {obalt} pak
-bal.tab(w.QC, stats = c("m", "v"), 
-                thresholds = c(m = .05, v=1.96), 
-                un=T, continuous = "std") # looks not good
-bal.plot(w.QC,  which = 'both') # dist of propensity score
-
-# Check the balance for addition weighting with diff methods
-bal.tab(w.QC.bal, stats = c("m", "v"), 
-                thresholds = c(m = .05, v=1.96), 
-                un=T, continuous = "std") # looks good
-bal.plot(w.QC.bal,  which = 'both') # dist of propensity score
 ```
 
 ##### Analysis based on weighted data
-
 ```{r}
 # Add weights back to data
 CLSA_com50.QC$w.weights<-w.QC$weights
@@ -221,23 +352,9 @@ lmm.QC.S<-glm(SER_SPIKE_COV~SER_ADM_COV,
     data=CLSA_com50.QC, family = binomial(link = "logit"), weights = w.weights)
 lmm.QC.S %>%
   gtsummary::tbl_regression(exponentiate = T)
-
-# weighted analysis (ebal):
-
-# OR of anti-N positive
-lmm.QC.N<-glm(SER_NUCLEOCAPSID_COV~SER_ADM_COV,
-    data=CLSA_com50.QC, family = binomial(link = "logit"), weights = bal.weights)
-lmm.QC.N %>%
-  gtsummary::tbl_regression(exponentiate = T)
-
-# OR of anti-S positive
-lmm.QC.S<-glm(SER_SPIKE_COV~SER_ADM_COV,
-    data=CLSA_com50.QC, family = binomial(link = "logit"), weights = bal.weights)
-lmm.QC.S %>%
-  gtsummary::tbl_regression(exponentiate = T)
 ```
 
-#### 1.3 Ontario - For some reason people here prefer VBS
+#### 2.5.3 Ontario - For some reason people here prefer VBS
 
 ##### PSW
 
@@ -256,16 +373,6 @@ w.ON <- weightit(SER_ADM_COV~age10 + SEX_CLSA +
                              time_vac15 + time_3cat, 
             data=CLSA_com50.ON, estimand = 'ATE', method = 'glm')
 summary(w.ON)
-```
-
-Take a look at the weights distribution
-
-```{r}
-# The balance table, from {obalt} pak
-bal.tab(w.ON, stats = c("m", "v"), 
-                thresholds = c(m = .05, v=1.96), 
-                un=T, continuous = "std") # looks good
-bal.plot(w.ON,  which = 'both') # dist of propensity score
 ```
 
 ##### Analysis based on weighted data
@@ -289,7 +396,8 @@ lmm.ON.S %>%
   gtsummary::tbl_regression(exponentiate = T)
 ```
 
-#### 1.4 MT & AB
+
+#### 2.5.4 MT & AB
 
 ##### PSW
 
@@ -304,16 +412,6 @@ w.MTAB <- weightit(SER_ADM_COV~age10 + SEX_CLSA +
                              time_vac15 + time_3cat, 
             data=CLSA_com50.MTAB, estimand = 'ATE', method = 'glm')
 summary(w.MTAB)
-```
-
-Take a look at the weights distribution
-
-```{r}
-# The balance table, from {obalt} pak
-bal.tab(w.MTAB, stats = c("m", "v"), 
-                thresholds = c(m = .05, v=1.96), 
-                un=T, continuous = "std") # looks good
-bal.plot(w.MTAB,  which = 'both') # dist of propensity score
 ```
 
 ##### Analysis based on weighted data
@@ -337,7 +435,8 @@ lmm.MTAB.S %>%
   gtsummary::tbl_regression(exponentiate = T)
 ```
 
-## 1.5 BC
+
+## 2.5.5 BC
 
 ##### PSW
 
@@ -354,18 +453,7 @@ w.BC <- weightit(SER_ADM_COV~age10 + SEX_CLSA +
 summary(w.BC)
 ```
 
-Take a look at the weights distribution
-
-```{r}
-# The balance table, from {obalt} pak
-bal.tab(w.BC, stats = c("m", "v"), 
-                thresholds = c(m = .05, v=1.96), 
-                un=T, continuous = "std") # looks good
-bal.plot(w.BC,  which = 'both') # dist of propensity score
-```
-
 ##### Analysis based on weighted data
-
 ```{r}
 # Add weights back to data
 CLSA_com50.BC$w.weights<-w.BC$weights
@@ -385,33 +473,11 @@ lmm.BC.S %>%
   gtsummary::tbl_regression(exponentiate = T)
 ```
 
-## ===================== Part. II Build OR Plot ============================
-
-## Depression Scale do not have ORs far from null (OR=1), we need to see if we want to keep it
-
-```{r}
-# Apply model selection algothrism
-
-CLSA_com50.c7<-CLSA_com50 %>%
-  dplyr::select(SER_ADM_COV, age10, SEX_CLSA ,
-            urban_rural,
-            SER_ETHN_WH_COV  ,
-            SER_EDU_COV ,
-            DEP_CESD10_COVX ,
-            dist_min_25km,
-            time_vac15,
-            PROV_5, avginc10_15d, time_3cat)
-
-lmAIC <- glm(SER_ADM_COV~., data=CLSA_com50.c7, family = binomial(link='logit'))
-MASS::stepAIC(lmAIC, direction = 'backward')
-gtsummary::tbl_regression(lmAIC, exponentiate = T)
-
-# Conclusion: the depression scale is an important factor in the best-fit model, we shall not remove it as the AIC would increase. For the same reason we also keep age in the model. 
-```
+## 2.6 OR table by province
 
 ## First we need to build models, then pull ORs from the model
 
-#### 2.1 ATL provinces (NFL & NS)
+#### 2.6.1 ATL provinces (NFL & NS)
 
 ```{r}
 # Apply same log reg model: model 06
@@ -432,7 +498,7 @@ lm06.ATL %>%
 ## Notes: the urban/rural variable needs some recategorization (done)
 ```
 
-#### 2.2 QC
+#### 2.6.2 QC
 
 ```{r}
 # Apply same log reg model: model 06
@@ -451,7 +517,7 @@ lm06.QC %>%
   gtsummary::tbl_regression(exponentiate = T)
 ```
 
-#### 2.3 ON
+#### 2.6.3 ON
 
 ```{r}
 # Apply same log reg model: model 06
@@ -470,7 +536,7 @@ lm06.ON %>%
   gtsummary::tbl_regression(exponentiate = T)
 ```
 
-#### 2.4 MT & AB
+#### 2.6.4 MT & AB
 
 ```{r}
 # Apply same log reg model: model 06
@@ -489,7 +555,7 @@ lm06.MTAB %>%
   gtsummary::tbl_regression(exponentiate = T)
 ```
 
-#### 2.4 BC
+#### 2.6.5 BC
 
 ```{r}
 # Apply same log reg model: model 06
@@ -546,7 +612,7 @@ g5prov<-ggplot(OR_import, aes(x = OR, y = group)) +
 # Add stripes
 library(ggforestplot) #From Github, not in pak tab but you can load it
 
-png(file="~/dbs-vs-venous-antibodies/3_intermediate/Fig.4 OR Plot by prov.png", 
+png(file="~/dbs-vs-venous-antibodies/3_intermediate/Fig.S4 OR Plot by prov.png", 
     width=2400, height=1800, res=300)
 g5prov + geom_stripes(odd = "#33333333", even = "#00000000") + # Stripes
          scale_color_brewer(palette="Set1")                  # Set Colour
@@ -586,7 +652,7 @@ g6ns<-ggplot(OR_NS, aes(x = OR, y = group)) +
   labs(x = "Odds ratio (>1 indicates venous samples are more likely to be positive)")
 
 # Add stripes
-png(file="~/dbs-vs-venous-antibodies/3_intermediate/Fig.5 OR Plot of Anti-N & S by prov.png", 
+png(file="~/dbs-vs-venous-antibodies/3_intermediate/Fig.S5 OR Plot of Anti-N & S by prov.png", 
     width=2400, height=1600, res=300)
 g6ns +   scale_color_brewer(palette="Set1") +                  # Set Colour
          coord_cartesian(xlim =c(0, 8))      # Not removing the data, see the tail
@@ -596,111 +662,7 @@ dev.off()
 rm(OR_NS, g6ns)
 ```
 
-## ==================== Part III. Experimental Analysis =================
 
-## 3.1 Use linear model from Mulchandani 2021 to adjust for quant anti-s (Roche)
 
-## We decided to add the DBS_adjusted into the figure
 
-```{r}
-# Source of the model:https://www.mdpi.com/1999-4915/13/6/962
-# Formula: DBS = 0.623 + 0.0744*Plasma
 
-# create a subset for future analysis
-CLSAs<-select(CLSA_com50.c6, SER_ADM_COV,
-              SPIKE_ANTIBODY, SER_SPIKE_COV)
-
-# anti-S positivity
-table(CLSAs$SER_SPIKE_COV, useNA = 'ifany')
-# "1" means anti-S positive
-
-# Apply the model to adjust VBS values
-# CLSAs$s_dbs_hat<- CLSAs$SPIKE_ANTIBODY*0.0744 + 0.623
-# CLSAs$s_dbs_hat[CLSAs$SER_ADM_COV==0]<-NA
-
-# Also we can adjust DBS values, this makes more senses
-# Apply the model to adjust VBS values
-CLSAs$s_dbs_adj<- CLSAs$SPIKE_ANTIBODY*13.4409 - 8.3737
-CLSAs$s_dbs_adj[CLSAs$SER_ADM_COV==1]<-NA
-```
-
-```{r}
-# Make plots
-png(file="~/dbs-vs-venous-antibodies/3_intermediate/Fig.1c Weighted eCDF Anti-S.png", 
-    width=1600, height=1200, res=300)
-plot(stats::ecdf(CLSAs$SPIKE_ANTIBODY[CLSAs$SER_ADM_COV==0 & 
-                                      CLSAs$SER_SPIKE_COV==1]),
-     xlim = c(0.1,4000),
-     log='x',
-     xaxt = 'n',
-     col = "blue",
-     main=' ',
-     xlab = 'Quant Anti-S Assay Results (U/ml, log scale)',
-     ylab = 'Cumulative proportion')
-abline(v=0.4, col="red", lty = "dotted", lwd = 2)
-abline(v=2500, col="red", lty = "dotted", lwd = 2)
-plot(stats::ecdf(CLSAs$s_dbs_adj[CLSAs$SER_ADM_COV==0 & 
-                                 CLSAs$SER_SPIKE_COV==1]),
-     add = TRUE,
-     lwd=2,
-     lty = "dotted",
-     col = "purple")
-plot(stats::ecdf(CLSAs$SPIKE_ANTIBODY[CLSAs$SER_ADM_COV==1 & 
-                                      CLSAs$SER_SPIKE_COV==1]),
-     add = TRUE,
-     lwd=2,
-     lty = "dotted",
-     col = "red")
-axis(side=1, at=c(-0.4, 0, 1, 10, 100, 1000))
-legend("bottomright", legend = c("DBS", "DBS (adjusted)", "Venous"),
-       lwd = 3, col = c("blue", "purple", "red"))
-dev.off()
-```
-
-#### K.S test (preferred) and t-test comparing DBS_adj and venous
-
-```{r}
-# K.S test showed sig diff bw adjusted DBS (brown) and venous
-ks.test(CLSAs$SPIKE_ANTIBODY[CLSAs$SER_ADM_COV==1 & 
-                             CLSAs$SER_SPIKE_COV==1],
-        CLSAs$s_dbs_adj[CLSAs$SER_ADM_COV==0 & 
-                        CLSAs$SER_SPIKE_COV==1],
-        alternative = "two.sided")
-
-# remove those beyond range of detection (>1600 & <0):
-ks.test(CLSAs$SPIKE_ANTIBODY[CLSAs$SER_ADM_COV==1 & 
-                             CLSAs$SER_SPIKE_COV==1 &
-                             CLSAs$SPIKE_ANTIBODY<2500],
-        CLSAs$s_dbs_adj[CLSAs$SER_ADM_COV==0 & 
-                        CLSAs$SER_SPIKE_COV==1 &
-                        CLSAs$s_dbs_adj<2500 &
-                        CLSAs$s_dbs_adj>0],
-        alternative = "two.sided")
-# After removing the out-of-range values (>2500, <0), the distribution of DBS_adj and venous is not significant different (P=0.1661). 
-
-# This is unweighhted K.S test, should do weighted K.S test using ks_test() in {Ecume} pak.
-
-# student t-test for log10 transformed:
-var.test(log10(CLSAs$SPIKE_ANTIBODY[CLSAs$SER_ADM_COV==1 & 
-                             CLSAs$SER_SPIKE_COV==1]),
-         log10(CLSAs$s_dbs_adj[CLSAs$SER_ADM_COV==0 & 
-                        CLSAs$SER_SPIKE_COV==1])
-        ) #var equal = T
-
- t.test(log10(CLSAs$SPIKE_ANTIBODY[CLSAs$SER_ADM_COV==1 & 
-                             CLSAs$SER_SPIKE_COV==1]),
-        log10(CLSAs$s_dbs_adj[CLSAs$SER_ADM_COV==0 & 
-                        CLSAs$SER_SPIKE_COV==1]),
-        alternative = "two.sided", var.equal = TRUE)
- 
-# student t-test, but remove out-of-range values
- t.test(log10(CLSAs$SPIKE_ANTIBODY[CLSAs$SER_ADM_COV==1 & 
-                                   CLSAs$SER_SPIKE_COV==1 &
-                                   CLSAs$SPIKE_ANTIBODY<2500]),
-        log10(CLSAs$s_dbs_adj[CLSAs$SER_ADM_COV==0 & 
-                              CLSAs$SER_SPIKE_COV==1 &
-                              CLSAs$s_dbs_adj>0 &
-                              CLSAs$s_dbs_adj<2500]),
-        alternative = "two.sided", var.equal = TRUE)
-# p-value of those t-tests <0.05
-```

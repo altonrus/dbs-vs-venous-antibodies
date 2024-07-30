@@ -148,12 +148,12 @@ Participants who provided in-person venous samples were more likely to be male, 
 table(CLSA_com50.c6$SER_ADM_COV, CLSA_com50.c6$SER_SPIKE_COV)
 # SER_ADM_COV = 0 - DBS, SER_ADM_COV = 1 - Venous
 
-# N=103 in venous, among 1393, 7.39%
+# N=102 in venous, among 1386, 7.39%
 length(CLSA_com50.c6$SPIKE_ANTIBODY[CLSA_com50.c6$SER_ADM_COV==1 & 
                             CLSA_com50.c6$SER_SPIKE_COV==1 & 
                             CLSA_com50.c6$SPIKE_ANTIBODY>=2500])
 
-# N=10 in DBS, among 1519, 0.66%
+# N=12 in DBS, among 1526, 0.66%
 length(CLSA_com50.c6$SPIKE_ANTIBODY[CLSA_com50.c6$SER_ADM_COV==0 & 
                             CLSA_com50.c6$SER_SPIKE_COV==1 & 
                             CLSA_com50.c6$SPIKE_ANTIBODY>=2500])
@@ -216,11 +216,14 @@ summary(CLSA_com50.c6$SPIKE_ANTIBODY[CLSA_com50.c6$SER_SPIKE_COV==1 &
 IQR(CLSA_com50.c6$SPIKE_ANTIBODY[CLSA_com50.c6$SER_SPIKE_COV==1 &
                                      CLSA_com50.c6$SER_ADM_COV==1])
 
+CLSA_com50.c6$s_dbs_adj<- CLSA_com50.c6$SPIKE_ANTIBODY*13.4409 - 8.3737
+CLSA_com50.c6$s_dbs_adj[CLSA_com50.c6$SER_ADM_COV==1]<-NA
+
 # DBS_adjusted
-summary(CLSAs$s_dbs_adj[CLSAs$SER_ADM_COV==0 & 
-                        CLSAs$SER_SPIKE_COV==1])
-IQR(CLSAs$s_dbs_adj[CLSAs$SER_ADM_COV==0 & 
-                        CLSAs$SER_SPIKE_COV==1])
+summary(CLSA_com50.c6$s_dbs_adj[CLSA_com50.c6$SER_ADM_COV==0 & 
+                        CLSA_com50.c6$SER_SPIKE_COV==1])
+IQR(CLSA_com50.c6$s_dbs_adj[CLSA_com50.c6$SER_ADM_COV==0 & 
+                        CLSA_com50.c6$SER_SPIKE_COV==1])
 ```
 
 **Figure 2**: Empirical cumulative distribution function for the quantitative Anti-S level among participants who tested positive on the Anti-S assay. Venous samples tended to have higher Anti-S levels (mean: 300.54 U/ml, median: 38.63 U/ml) compared to DBS (mean: 105.75 U/ml, median: 3.43 U/ml). Adjusted Anti-S assay results performed on DBS samples has similar distribution as assay results performed on venous samples. However, this similarity is only observed within the dynamic range of the assay (0.4-2500 U/ml).
