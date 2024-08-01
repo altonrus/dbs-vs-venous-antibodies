@@ -32,6 +32,7 @@ load(file='../1_data/private/CLSA_mncom.RData')
 ```
 
 ## Set API
+
 ```{r}
 # Replace "XX" below with the proper Google Map api key
 set.api.key("XX")
@@ -44,9 +45,10 @@ set.api.key("XX")
 #### 1.1 Load shape file
 
 #### Source of the shape file:https://open.canada.ca/data/en/dataset/a883eb14-0c0e-45c4-b8c4-b54c4a819edb
+
 ```{r}
 # Load shape file
-s.sf<-st_read("~/dbs-vs-venous-antibodies/1_data/AB_Geo/lfsa000a21a_e.shp")       # FSA file
+s.sf<-st_read("../1_data/AB_Geo/lfsa000a21a_e.shp")       # FSA file
 pop.sf<-st_read("~/AB_Geo/AB_POP_CNTR/lpc_000a21a_e.shp") # pop center shp
 # Now make a subsets
 s.sf.ab<-s.sf[s.sf$PRUID==48,]                            # AB
@@ -536,15 +538,3 @@ CLSA_mncom[CLSA_mncom$dist_min<50000,]  %>%
 ```{r}
 save(CLSA_FSA, file = "~/dbs-vs-venous-antibodies/1_data/private/CLSA_FSA.RData")
 ```
-
-
-
-
-
-
-
-
-
-
-
-

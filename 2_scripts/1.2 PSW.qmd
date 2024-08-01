@@ -6,7 +6,9 @@ editor: visual
 
 ## Quarto
 
-Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+This file includes the codes for those sections:
+1. PSW
+2. Making tables and figures
 
 ## Running Code
 
@@ -661,7 +663,131 @@ dev.off()
 
 rm(OR_NS, g6ns)
 ```
+## 2.7 Heatmap for sampling frequency
 
+#### 2.7.1 Create a heatmap
+```{r}
+# add samplemonth var
+CLSA_com50$samplemonth<-as.yearmon(CLSA_com50$start_datetime_COV)
+
+tb1<-CLSA_com50 %>%
+  group_by(samplemonth, PROV_5, SER_ADM_COV, .add=TRUE) %>%
+  summarise(n = n(), )
+```
+```{r}
+# code DBS n as minus
+tb1$n[tb1$SER_ADM_COV==0]= -1*tb1$n[tb1$SER_ADM_COV==0]
+
+# Heatmap 02 - Heatmap, DBS (blue) over venous (red), by regions
+hmap02<-ggplot(data = tb1[!is.na(tb1$samplemonth),],
+               mapping = aes(x = samplemonth,
+                             y = SER_ADM_COV, fill = n)) +
+  geom_tile() +
+  labs(title = "Heat map") +
+  xlab(label = "Date of Sample Collection") +
+  ylab(label = "") +
+  theme_bw() + 
+  scale_fill_gradient2(name = "Num. of Samples",
+                      low = "blue", mid = "white", high = "red",
+                      breaks=c(-400,-200,0,200,400),
+                      labels=c("400-DBS","200",0,"200","400-Venous"),
+                      limits=c(-400,400)) +
+  theme(axis.text.y =element_blank(),
+        axis.ticks.y=element_blank(),
+        panel.background = element_rect(fill ="lightgrey"))
+
+hmap02 +  facet_wrap(~PROV_5, nrow = 5)
+```
+
+#### 2.7.2 Create a sample freq bar plot
+```{r}
+tb3<-CLSA_com50 %>%
+  group_by(samplemonth, SER_ADM_COV, .add=TRUE) %>%
+  summarise(n = n(), )
+tb3<-tb3[!is.na(tb3$samplemonth),]
+# use ggplot for the plotting:
+
+# First we modify data and make DBS negative (under x axis)
+tb3$n.neg<-tb3$n*(-1)
+tb3$n[tb3$SER_ADM_COV==0]<-tb3$n.neg[tb3$SER_ADM_COV==0]
+
+p01<-ggplot(tb3, aes(samplemonth, n, fill = factor(SER_ADM_COV))) + 
+  geom_bar(position = "stack", stat = 'identity')+
+  labs(title = "Sampling Frequency",
+       x="Date of Sample Collection", y="Num. of Samples",
+       color = "") +
+  scale_fill_manual("", labels = c("DBS", "Venous"), values=c("blue", "red")) +
+  scale_y_continuous(breaks = seq(-1000, 500, by = 500), 
+                     label = c("1000", "500","0","500"))+
+  theme_bw() 
+
+p01
+
+# Print all plots panelled
+png(file="../3_intermediate/Fig.S2 Heatmap and Freq.png", 
+    width=2400, height=2400, res=300)
+cowplot::plot_grid(p01, hmap02+  facet_wrap(~PROV_5, nrow = 5), 
+                   rel_heights = c(1,2), align = "hv",
+                   labels = c("A", "B"),
+                   ncol = 1, nrow = 2)
+dev.off()
+
+# Remove all intermediate datasets
+rm(tb1, tb3, p01, hmap02)
+```
+
+## 2.8 Modify figure.1 -  Use linear model from Mulchandani 2021 to adjust for quant anti-s (Roche)
+
+```{r}
+# Source of the model:https://www.mdpi.com/1999-4915/13/6/962
+# Formula: DBS = 0.623 + 0.0744*Plasma
+
+# create a subset for future analysis
+CLSAs<-select(CLSA_com50.c6, SER_ADM_COV,
+              SPIKE_ANTIBODY, SER_SPIKE_COV, w.weights)
+
+# anti-S positivity
+table(CLSAs$SER_SPIKE_COV, useNA = 'ifany')
+# "1" means anti-S positive
+
+# Also we can adjust DBS values, this makes more senses
+# Apply the model to adjust VBS values
+CLSAs$s_dbs_adj<- CLSAs$SPIKE_ANTIBODY*13.4409 - 8.3737
+CLSAs$s_dbs_adj[CLSAs$SER_ADM_COV==1]<-NA
+```
+
+```{r}
+# Make plots
+png(file="~/dbs-vs-venous-antibodies/3_intermediate/Fig.1 Weighted eCDF Anti-S.png", 
+    width=1600, height=1200, res=300)
+plot(ewcdf(CLSAs$SPIKE_ANTIBODY[CLSAs$SER_ADM_COV==0 & CLSAs$SER_SPIKE_COV==1],
+           weights = CLSAs$w.weights[CLSAs$SER_ADM_COV==0 & CLSAs$SER_SPIKE_COV==1]),
+     xlim = c(0.1,4000),
+     log='x',
+     xaxt = 'n',
+     col = "blue",
+     main=' ',
+     xlab = 'Quant Anti-S Assay Results (U/ml, log scale)',
+     ylab = 'Cumulative proportion')
+abline(v=0.4, col="red", lty = "dotted", lwd = 2)
+abline(v=2500, col="red", lty = "dotted", lwd = 2)
+plot(ewcdf(CLSAs$s_dbs_adj[CLSAs$SER_ADM_COV==0 & CLSAs$SER_SPIKE_COV==1],
+           weights = CLSAs$w.weights[CLSAs$SER_ADM_COV==0 & CLSAs$SER_SPIKE_COV==1]),
+     add = TRUE,
+     lwd=2,
+     lty = "dotted",
+     col = "purple")
+plot(ewcdf(CLSAs$SPIKE_ANTIBODY[CLSAs$SER_ADM_COV==1 & CLSAs$SER_SPIKE_COV==1],
+           weights = CLSAs$w.weights[CLSAs$SER_ADM_COV==1 & CLSAs$SER_SPIKE_COV==1]),
+     add = TRUE,
+     lwd=2,
+     lty = "dotted",
+     col = "red")
+axis(side=1, at=c(-0.4, 0, 1, 10, 100, 1000))
+legend("bottomright", legend = c("DBS", "DBS (adjusted)", "Venous"),
+       lwd = 3, col = c("blue", "purple", "red"))
+dev.off()
+```
 
 
 
