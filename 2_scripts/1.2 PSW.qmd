@@ -6,9 +6,7 @@ editor: visual
 
 ## Quarto
 
-This file includes the codes for those sections:
-1. PSW
-2. Making tables and figures
+This file includes the codes for those sections: 1. PSW 2. Making tables and figures
 
 ## Running Code
 
@@ -38,6 +36,7 @@ load(file='../1_data/private/CLSA_com50.RData')
 ## 1.1 Calculate weights using IPTW
 
 #### Create a clean dataset for PSW models
+
 ```{r}
 CLSA_com50.c6<-CLSA_com50 %>%
   dplyr::select(SER_ADM_COV, AGE_NMBR_COVID , age10,
@@ -54,6 +53,7 @@ CLSA_com50.c6<-na.omit(CLSA_com50.c6)
 ```
 
 #### PSW
+
 ```{r}
 w.01 <- weightit(SER_ADM_COV~age10 + SEX_CLSA +
                              urban_rural +
@@ -72,9 +72,10 @@ CLSA_com50.c6$w.weights<-w.01$weights
 
 ## 1.2. Analyze weighted data
 
-#### Anti-N&S positivity
+#### Anti-N&S positivity: Odds ratios
 
 ```{r}
+
 lmm.06.N<-glm(SER_NUCLEOCAPSID_COV~SER_ADM_COV,
            data=CLSA_com50.c6, family = binomial(link = "logit"),
            weights = w.weights)
@@ -93,11 +94,54 @@ lmm.06.S %>%
 # OR=1.43 (1.33-1.54)
 ```
 
+
+#### Anti-N&S positivity: Risk ratios
+
+Calculate risk ratios using a log-binomial model.
+
+
+```{r}
+
+#NOTE: risk ratios depend which group is coded as the reference
+#. Outcome SER_NUCLEOCAPSID_COV should be 1 for positive and 0 for negative
+#. Group SER_ADM_COV should be 1 for DBS and 0 for VBS
+
+# RR of anti-N positive
+lmm.RR.N <-glm(SER_NUCLEOCAPSID_COV~SER_ADM_COV,
+           data=CLSA_com50.c6, family = binomial(link = "log"),
+           weights = w.weights)
+
+# View model summary
+summary(lmm.RR.N)
+
+# Exponentiate coefficient to get risk ratio
+exp(coef(lmm.RR.N))
+
+# Confidence intervals for the risk ratio
+exp(confint(lmm.RR.N))
+
+# PR of anti-S positive
+lmm.RR.S<-glm(SER_SPIKE_COV~SER_ADM_COV,
+              data=CLSA_com50.c6, family = binomial(link = "log"),
+              weights = w.weights)
+
+# View model summary
+summary(lmm.RR.S)
+
+# Exponentiate coefficient to get risk ratio
+exp(coef(lmm.RR.S))
+
+# Confidence intervals for the risk ratio
+exp(confint(lmm.RR.S))
+```
+
+
 ## ======== Part.II Making Plots and Tables =============
 
 ## 2.1 Figure 1: Weighted eCDF
 
 #### Weighted ecdf, using IPTW weights
+
 ```{r}
 # We used the ewcdf() from {spatstat} package
 table(CLSA_com50.c6$SER_ADM_COV, CLSA_com50.c6$SER_SPIKE_COV)
@@ -114,6 +158,7 @@ wecdf_S_VBS<-CLSA_com50.c6 %>%
 ```
 
 ##### Make and print the plot
+
 ```{r}
 png(file="~/dbs-vs-venous-antibodies/3_intermediate/Fig.1 Weighted eCDF Anti-S.png", 
     width=1600, height=1200, res=300)
@@ -137,7 +182,9 @@ legend("bottomright", legend = c("DBS", "VBS"),
        lwd = 3, col = c("blue", "red"))
 dev.off()
 ```
+
 ## 2.2 The regression model: Best-fit Model
+
 ```{r}
 # Beware we apply the model here to the original CLSA data (N=7230) instead of the complete cases only version (.c6, N=6174). This would allow us to utilize more records in the model.
 lm06.t <- glm(SER_ADM_COV ~ age10 + 
@@ -158,6 +205,7 @@ gtsummary::tbl_regression(lm06.t, exponentiate = T)
 ## 2.3 Bivariate analysis
 
 #### Build Simple OR for each variable
+
 ```{r}
 # Build a function for simple regression and OR
 simple_reg_OR<-function(v){
@@ -180,6 +228,7 @@ simple_reg_OR.w(CLSA_com50.c6$age10) # Looks good
 ```
 
 #### Add other variables, for unadjusted OR calculation
+
 ```{r}
 simple_reg_OR(CLSA_com50$SEX_CLSA)                            # Sex
 
@@ -222,9 +271,11 @@ simple_reg_OR.w(relevel(CLSA_com50.c6$PROV_5, ref='5 = BC'))       # Prov, ref=B
 simple_reg_OR.w(CLSA_com50.c6$time_3cat)                           # Time_3cat
 
 ```
+
 ## 2.4 Make OR table
 
 #### Import the OR table
+
 ```{r}
 # This OR table is created outside of R manually, by filling the ORs from model.06p and those from simple logistic regression models above.
 library(readxl)
@@ -275,6 +326,7 @@ g01+geom_stripes(odd = "#33333333", even = "#00000000")+
    scale_color_brewer(palette="Set1") 
 dev.off()
 ```
+
 ## 2.5 OR table by Provinces
 
 #### 2.5.1 ATL provinces - NFL & NS
@@ -295,6 +347,7 @@ summary(w.ATL)
 ```
 
 ##### Analysis based on weighted data
+
 ```{r}
 # Add weights back to data
 CLSA_com50.ATL$w.weights<-w.ATL$weights
@@ -336,6 +389,7 @@ summary(w.QC)
 ```
 
 ##### Analysis based on weighted data
+
 ```{r}
 # Add weights back to data
 CLSA_com50.QC$w.weights<-w.QC$weights
@@ -398,7 +452,6 @@ lmm.ON.S %>%
   gtsummary::tbl_regression(exponentiate = T)
 ```
 
-
 #### 2.5.4 MT & AB
 
 ##### PSW
@@ -437,7 +490,6 @@ lmm.MTAB.S %>%
   gtsummary::tbl_regression(exponentiate = T)
 ```
 
-
 ## 2.5.5 BC
 
 ##### PSW
@@ -456,6 +508,7 @@ summary(w.BC)
 ```
 
 ##### Analysis based on weighted data
+
 ```{r}
 # Add weights back to data
 CLSA_com50.BC$w.weights<-w.BC$weights
@@ -663,9 +716,11 @@ dev.off()
 
 rm(OR_NS, g6ns)
 ```
+
 ## 2.7 Heatmap for sampling frequency
 
 #### 2.7.1 Create a heatmap
+
 ```{r}
 # add samplemonth var
 CLSA_com50$samplemonth<-as.yearmon(CLSA_com50$start_datetime_COV)
@@ -674,6 +729,7 @@ tb1<-CLSA_com50 %>%
   group_by(samplemonth, PROV_5, SER_ADM_COV, .add=TRUE) %>%
   summarise(n = n(), )
 ```
+
 ```{r}
 # code DBS n as minus
 tb1$n[tb1$SER_ADM_COV==0]= -1*tb1$n[tb1$SER_ADM_COV==0]
@@ -700,6 +756,7 @@ hmap02 +  facet_wrap(~PROV_5, nrow = 5)
 ```
 
 #### 2.7.2 Create a sample freq bar plot
+
 ```{r}
 tb3<-CLSA_com50 %>%
   group_by(samplemonth, SER_ADM_COV, .add=TRUE) %>%
@@ -736,7 +793,7 @@ dev.off()
 rm(tb1, tb3, p01, hmap02)
 ```
 
-## 2.8 Modify figure.1 -  Use linear model from Mulchandani 2021 to adjust for quant anti-s (Roche)
+## 2.8 Modify figure.1 - Use linear model from Mulchandani 2021 to adjust for quant anti-s (Roche)
 
 ```{r}
 # Source of the model:https://www.mdpi.com/1999-4915/13/6/962
@@ -788,7 +845,3 @@ legend("bottomright", legend = c("DBS", "DBS (adjusted)", "Venous"),
        lwd = 3, col = c("blue", "purple", "red"))
 dev.off()
 ```
-
-
-
-
