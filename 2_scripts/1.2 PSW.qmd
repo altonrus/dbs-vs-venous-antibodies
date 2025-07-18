@@ -69,6 +69,35 @@ summary(w.01)
 # add weights to data
 CLSA_com50.c6$w.weights<-w.01$weights
 ```
+#### Revert the coding on sampling methods: venous as ref (=0)
+Rational: While OR have a symmetry where if you odds of positivity for DBS vs. VBS is the reciprocal of odds for VBS vs. DBS, but choice of reference group matters for risk ratio. Since VBS is more the “standard “ or “default”, I’d like to report odds of positivity for DBS vs. VBS, with VBS as the reference, which I believe is the opposite of what you’ve done, and if we’re to report RR and OR then the reference should be the same. I’ve already converted the OR in the results by just taking the reciprocal.
+```{r}
+CLSA_com50<-CLSA_com50 %>%
+  mutate(SER_ADM_COV2=ifelse(SER_ADM_COV==0, 1, 0), .before=min_health) %>%
+  select(-c(SER_ADM_COV)) %>%
+  rename(SER_ADM_COV = SER_ADM_COV2)
+
+CLSA_com50.c6<-CLSA_com50.c6 %>%
+  mutate(SER_ADM_COV2=ifelse(SER_ADM_COV==0, 1, 0), .before=AGE_NMBR_COVID) %>%
+  select(-c(SER_ADM_COV)) %>%
+  rename(SER_ADM_COV = SER_ADM_COV2)
+```
+
+
+#### PSW model for propensity score
+```{r}
+lmm.w.01<-glm(SER_ADM_COV~age10 + SEX_CLSA +
+                             urban_rural +
+                             SER_ETHN_WH_COV  +
+                             SER_EDU_COV +
+                             DEP_CESD10_COVX +
+                             dist_min_25km +
+                             time_vac15 +
+                             PROV_5 + time_3cat, 
+            data=CLSA_com50.c6, family = binomial(link="logit"))
+summary(lmm.w.01)
+```
+
 
 ## 1.2. Analyze weighted data
 
@@ -845,3 +874,12 @@ legend("bottomright", legend = c("DBS", "DBS (adjusted)", "Venous"),
        lwd = 3, col = c("blue", "purple", "red"))
 dev.off()
 ```
+
+#### 2.9 Scatter Plot - 
+
+## X. Save the edited data
+```{r}
+save(CLSA_com50, file = "../1_data/private/CLSA_com50.RData")
+save(CLSA_com50.c6, file = "../1_data/private/CLSA_com50.c6.RData")
+```
+

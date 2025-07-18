@@ -278,6 +278,7 @@ save(CLSA_mn, file = '~/dbs-vs-venous-antibodies/1_data/private/CLSA_mn.RData')
 ```
 
 #### In the merged data, check Anti-S dist among DBS (ADM=2) and Venous (ADM=1)
+
 ```{r}
 # DBS: ADM=2, nagative
 summary(CLSA_mn$SPIKE_ANTIBODY[CLSA_mn$SER_ADM_COV==2 &
@@ -304,7 +305,9 @@ sd(CLSA_mn$SPIKE_ANTIBODY[CLSA_mn$SER_ADM_COV==1 &
                                       CLSA_mn$SER_SPIKE_COV==1], na.rm = T)
 
 ```
+
 #### Check the numbers in each track
+
 ```{r}
 ## Original CLSA_COVID data, N=28,565
 str(CLSA_Covid$cohort)
@@ -349,14 +352,15 @@ save(CLSA_com50, file = '../1_data/private/CLSA_com50.RData')
 ```
 
 #### Remove all unnecessary data
+
 ```{r}
 rm(CLSA_Antibody_small, CLSA_Covid, CLSA_Covid_small,
    COVID_19_Ab_Numeric,
    CLSA_m, CLSA_mn, CLSA_mncom)
 ```
 
-
 ## 3. Add additional covariates
+
 On the top of CLSA_mncom subset, we selected those live within 50 km of the data collection sites (DCS), N=7230 participants were finally selected. Then we added additional covariates, including:
 
 -   Time since last PCR+ Test (Days)
@@ -366,6 +370,7 @@ On the top of CLSA_mncom subset, we selected those live within 50 km of the data
 -   Binary: Time to PCR
 
 #### A function for proportion tables
+
 ```{r}
 proptable_chisq2<-function(r){
             tab1<-table(r, CLSA_com50$SER_ADM_COV)
@@ -379,7 +384,6 @@ proptable_chisq2<-function(r){
             fisher.test(tab1, simulate.p.value = T)
 }
 ```
-
 
 #### 3.1 PCR and other available tests:
 
@@ -514,6 +518,7 @@ table(CLSA_com50$SER_RSLT_SUM_bin15, CLSA_com50$SER_RSLT_SUM, useNA = 'ifany')
 
 save(CLSA_com50, file = '~/dbs-vs-venous-antibodies/1_data/private/CLSA_com50.RData')
 ```
+
 #### 3.2 Vaccination Info （CLSA_Antibody Data）
 
 ```{r}
@@ -642,6 +647,7 @@ table(CLSA_com50$outbreak, useNA = 'ifany')
 
 proptable_chisq2(CLSA_com50$outbreak)
 ```
+
 #### To make the ggplotting much easier, adding formats and labels
 
 ```{r}
@@ -692,7 +698,8 @@ Hmisc::label(CLSA_com50$outbreak)="Outbreak Peaks"
 Hmisc::label(CLSA_com50$PROV_5)="Prov Group"
 ```
 
-## 4. Recode variables for better-looking figures 
+## 4. Recode variables for better-looking figures
+
 ```{r}
 # How many do we have in each group?
 table(CLSA_com50$PROV_5, useNA = 'ifany')
@@ -727,7 +734,6 @@ CLSA_com50$time_3cat[CLSA_com50$start_datetime_COV>=as.Date("2021-04-01") &
 CLSA_com50$time_3cat[CLSA_com50$start_datetime_COV>as.Date("2021-05-31")]<-"June_Aug 21"
 ```
 
-
 # Save the dataset
 
 ```{r}
@@ -736,6 +742,3 @@ rm(CLSA_Temp, CLSA_Time)
 
 save(CLSA_com50, file = '../1_data/private/CLSA_com50.RData')
 ```
-
-
-
