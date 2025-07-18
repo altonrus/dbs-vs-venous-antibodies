@@ -72,9 +72,10 @@ CLSA_com50.c6$w.weights<-w.01$weights
 
 ## 1.2. Analyze weighted data
 
-#### Anti-N&S positivity
+#### Anti-N&S positivity: Odds ratios
 
 ```{r}
+
 lmm.06.N<-glm(SER_NUCLEOCAPSID_COV~SER_ADM_COV,
            data=CLSA_com50.c6, family = binomial(link = "logit"),
            weights = w.weights)
@@ -92,6 +93,48 @@ lmm.06.S %>%
   gtsummary::tbl_regression(exponentiate = T)
 # OR=1.43 (1.33-1.54)
 ```
+
+
+#### Anti-N&S positivity: Risk ratios
+
+Calculate risk ratios using a log-binomial model.
+
+
+```{r}
+
+#NOTE: risk ratios depend which group is coded as the reference
+#. Outcome SER_NUCLEOCAPSID_COV should be 1 for positive and 0 for negative
+#. Group SER_ADM_COV should be 1 for DBS and 0 for VBS
+
+# RR of anti-N positive
+lmm.RR.N <-glm(SER_NUCLEOCAPSID_COV~SER_ADM_COV,
+           data=CLSA_com50.c6, family = binomial(link = "log"),
+           weights = w.weights)
+
+# View model summary
+summary(lmm.RR.N)
+
+# Exponentiate coefficient to get risk ratio
+exp(coef(lmm.RR.N))
+
+# Confidence intervals for the risk ratio
+exp(confint(lmm.RR.N))
+
+# PR of anti-S positive
+lmm.RR.S<-glm(SER_SPIKE_COV~SER_ADM_COV,
+              data=CLSA_com50.c6, family = binomial(link = "log"),
+              weights = w.weights)
+
+# View model summary
+summary(lmm.RR.S)
+
+# Exponentiate coefficient to get risk ratio
+exp(coef(lmm.RR.S))
+
+# Confidence intervals for the risk ratio
+exp(confint(lmm.RR.S))
+```
+
 
 ## ======== Part.II Making Plots and Tables =============
 
