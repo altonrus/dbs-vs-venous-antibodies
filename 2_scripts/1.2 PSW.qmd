@@ -451,7 +451,7 @@ g01<-ggplot(OR_import, aes(x = OR, y = group)) +
           legend.title = element_blank(),
           axis.title.y = element_blank()
           ) +
-  labs(x = "Odds ratio (>1 indicates propensity for in-person venous sample)")
+  labs(x = "Odds ratio (>1 indicates propensity for DBS sample)")
 
 # Plot is good, but needs to add shadows for aesthetic purposes 
 ```
@@ -797,6 +797,7 @@ g5prov<-ggplot(OR_import, aes(x = OR, y = group)) +
     geom_point(size = 2, aes(colour=Prov, shape=alpha),
                position = position_dodge(width = 1.0))+
     scale_shape_manual(values=c(16, 1))+
+    scale_x_log10() +
     theme_bw()+
     theme(plot.background = element_blank(),
           panel.grid.major = element_blank(),
@@ -806,7 +807,7 @@ g5prov<-ggplot(OR_import, aes(x = OR, y = group)) +
           axis.title.y = element_blank(),
           plot.caption = element_text(hjust = 0)
           ) +
-  labs(x = "Odds ratio (>1 indicates propensity for in-person venous sample)")
+  labs(x = "Odds ratio (>1 indicates propensity for DBS sample)")
 
 # Add stripes
 library(ggforestplot) #From Github, not in pak tab but you can load it
@@ -848,13 +849,12 @@ g6ns<-ggplot(OR_NS, aes(x = OR, y = group)) +
           axis.title.y = element_blank(),
           plot.caption = element_text(hjust = 0)
           ) +
-  labs(x = "Odds ratio (>1 indicates venous samples are more likely to be positive)")
+  labs(x = "Odds ratio (<1 indicates DBS samples are less likely to be positive)")
 
 # Add stripes
 png(file="~/dbs-vs-venous-antibodies/3_intermediate/Fig.S5 OR Plot of Anti-N & S by prov.png", 
     width=2400, height=1600, res=300)
-g6ns +   scale_color_brewer(palette="Set1") +                  # Set Colour
-         coord_cartesian(xlim =c(0, 8))      # Not removing the data, see the tail
+g6ns +   scale_color_brewer(palette="Set1")                 # Set Colour
          # ggtitle("OR of Assay Posivitity, Stratified by Province Groups")
 dev.off()
 
@@ -1148,6 +1148,8 @@ dev.off()
 
 #### 2.10 Supplemental Table X 
 The table is a set of two 2-by-2 tables (1 anti-N and 1 anti-S), vaccination by sampling methods.
+
+##### Raw estimates
 ```{r}
 # Anti-N seroprevalance
 CLSA_com50 %>%
@@ -1158,6 +1160,44 @@ CLSA_com50 %>%
 CLSA_com50 %>%
   group_by(SER_ADM_COV) %>%
   count(time_vac15, SER_SPIKE_COV)
+```
+
+##### Weighted Test Positivity (EStimated Seroprevalence)
+```{r}
+# Calculate weighted test positivity
+# Anti-N
+CLSA_com50.c6 %>%
+  group_by(SER_ADM_COV, time_vac15) %>%
+  summarise(
+    n_positive = sum(w.weights[SER_NUCLEOCAPSID_COV == 1], na.rm = TRUE),
+    n_total = sum(w.weights, na.rm = TRUE),
+    positivity_rate = n_positive / n_total
+  )
+
+CLSA_com50.c6 %>%
+  group_by(SER_ADM_COV) %>%
+  summarise(
+    n_positive = sum(w.weights[SER_NUCLEOCAPSID_COV == 1], na.rm = TRUE),
+    n_total = sum(w.weights, na.rm = TRUE),
+    positivity_rate = n_positive / n_total
+  )
+
+# Anti-S
+CLSA_com50.c6 %>%
+  group_by(SER_ADM_COV, time_vac15) %>%
+  summarise(
+    n_positive = sum(w.weights[SER_SPIKE_COV == 1], na.rm = TRUE),
+    n_total = sum(w.weights, na.rm = TRUE),
+    positivity_rate = n_positive / n_total
+  )
+
+CLSA_com50.c6 %>%
+  group_by(SER_ADM_COV) %>%
+  summarise(
+    n_positive = sum(w.weights[SER_SPIKE_COV == 1], na.rm = TRUE),
+    n_total = sum(w.weights, na.rm = TRUE),
+    positivity_rate = n_positive / n_total
+  )
 ```
 
 
