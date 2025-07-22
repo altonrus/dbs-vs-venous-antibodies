@@ -75,7 +75,7 @@ table(is.na(CLSA_com50$SPIKE_ANTIBODY))
 First, we developed a logistic regression propensity model to examine the association of demographics, geography, and health-related factors with the choice to provide a DBS or venous sample. Then, we compared SARS-CoV-2 Anti-N and Anti-S (7,230 assays each) results between participants who provided DBS (n = 3,773) or venous samples (n = 3,450; **Fig. S1**), using inverse probability of treatment weighting to adjust from potential confounding variables (details in **Supplemental Methods**).
 
 ```{r, include=FALSE}
-# "would have been" scenarios (la conditionel)
+# "would have been" scenarios (la conditionnel)
 # Alton: For the DBS vs venous analysis, can we estimate what the population anti-N and anti-S seropositivity would've been if everyone gave DBS vs. venous samples? Would really illustrate the magnitude of the effect of the sample collection methods
 
 # Load the complete case only version of the CLSA data:
