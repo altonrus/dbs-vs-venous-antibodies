@@ -1013,6 +1013,7 @@ p2.9.a<-CLSA_com50 %>%
 p2.9.a
 # potentially, use start_datetime_COV for x-axis
 ```
+
 ```{r}
 # The anti-S S/Co figure (panel B)
 p2.9.b<-CLSA_com50 %>%
@@ -1033,120 +1034,120 @@ p2.9.b<-CLSA_com50 %>%
   theme(axis.text.x = element_text(angle = -45, hjust=0, vjust=0.5))
 p2.9.b
 ```
-##### Add prov prevalence data (source: CITF)
-Source: http://www.covid19immunitytaskforce.ca/seroprevalence-in-canada
+
+#### 2.10 Modified Fig S5 Scatterplot, the solid lines indicate rolling mean (3-mon average)
+
+##### Calculate 3-month rolling average
 ```{r}
-# Load prevalence data in .RData format:
-load("~/dbs-vs-venous-antibodies/1_data/estimated_seroprevalence.RData")
-CITF_prev<-x
-rm(x)
+# Function to calculate the 3-month rolling average for a given month M
+rolling_n <- function(M, data) {
+  start_date <- M - 45  # First day of previous month
+  end_date <-   M + 44  # Last day of next month
+  avg_data <- data %>%
+    filter(start_datetime_COV >= start_date & start_datetime_COV <= end_date) %>%
+    filter(SER_NUCLEOCAPSID_COV==1) %>%
+    group_by(SER_ADM_COV, PROV_5) %>%
+    summarise(rolling_avg = mean(NUCLEOCAPSID_ANTIBODY, na.rm = TRUE), .groups = "drop") %>%
+    mutate(start_datetime_COV = M)
+  return(avg_data)
+}
+
+# Calculate the rolling average for all dates
+rolling_n_avg <- lapply(CLSA_com50$start_datetime_COV, rolling_n, data = CLSA_com50) %>%
+  bind_rows()
+
+# modify the rolling avg data for ggplot
+rolling_n_avg<-rolling_n_avg %>%
+  mutate(SER_ADM_COV = factor(SER_ADM_COV, levels = c(0, 1), labels = c("Venous", "DBS")))
+
+# Function to calculate the 3-month rolling average for a given month M
+rolling_s <- function(M, data) {
+  start_date <- M - 45  # First day of previous month
+  end_date <-   M + 44  # Last day of next month
+  avg_data <- data %>%
+    filter(start_datetime_COV >= start_date & start_datetime_COV <= end_date) %>%
+    filter(SER_SPIKE_COV==1) %>%
+    group_by(SER_ADM_COV, PROV_5) %>%
+    summarise(rolling_avg = mean(SPIKE_ANTIBODY, na.rm = TRUE), .groups = "drop") %>%
+    mutate(start_datetime_COV = M)
+  return(avg_data)
+}
+
+# Calculate the rolling average for all dates
+rolling_s_avg <- lapply(CLSA_com50$start_datetime_COV, rolling_s, data = CLSA_com50) %>%
+  bind_rows()
+
+# modify the rolling avg data for ggplot
+rolling_s_avg<-rolling_s_avg %>%
+  mutate(SER_ADM_COV = factor(SER_ADM_COV, levels = c(0, 1), labels = c("Venous", "DBS")))
 ```
 
 ```{r}
-# Additional Data Cleaning
-
-# Calculate monthly mean prev
-CITF_sum<-CITF_prev %>%
-  mutate(samplemonth = as.yearmon(week_end), .after=week_end) %>%
-  group_by(samplemonth, geo, ab_estimate) %>%
-  summarise(
-    pct_mon_mean  = mean(pct_mean, na.rm=TRUE)
-  )
-
-# Calculate population-weighted prev in each region
-CITF_sum<-CITF_sum %>%
-  filter(geo %in% c("BC", "AB", "MB", "ON", "QC", "NL", "NS")) %>%
-  filter(between(samplemonth, as.yearmon("2020-10-01"), as.yearmon("2021-08-31")))
-
-CITF_sum$PROV_5[CITF_sum$geo %in% c("NL", "NS")]<-1
-CITF_sum$PROV_5[CITF_sum$geo %in% c("QC")]<-2
-CITF_sum$PROV_5[CITF_sum$geo %in% c("ON")]<-3
-CITF_sum$PROV_5[CITF_sum$geo %in% c("MB", "AB")]<-4
-CITF_sum$PROV_5[CITF_sum$geo %in% c("BC")]<-5
-
-table(CITF_sum$geo, CITF_sum$PROV_5, useNA = 'ifany')
-
-CITF_sum<-CITF_sum %>%
-  mutate(PROV_5 = factor(PROV_5, levels = c(1, 2, 3, 4, 5), 
-                                 labels = c("NL & NS", "QC", "ON",
-                                            "MB & AB", "BC")))
-# add population as weights
-geo=c("NL","NS","QC","ON","MB","AB","BC")
-pop.weights = c(510550, 969383,8501833, 14233942, 1342153, 4262635, 5000879)
-pop<-cbind.data.frame(geo, pop.weights)
-rm(geo, pop.weights)
-CITF_sum<-merge(CITF_sum, pop, by="geo")
-
-CITF_sum<-CITF_sum %>%
-  group_by(samplemonth, ab_estimate, PROV_5) %>%
-  summarise(
-    pct_mon_mean.w = weighted.mean(pct_mon_mean, w=pop.weights)
-  )
-
-# merge pop prev into CLSA data
-CLSA_com50 <- CLSA_com50 %>%
-  mutate(PROV_5 = factor(as.numeric(PROV_5), levels = c(1, 2, 3, 4, 5), 
-                                 labels = c("NL & NS", "QC", "ON",
-                                            "MB & AB", "BC")))
-CITF_sum_n<-CITF_sum %>%
-  filter(ab_estimate=="Anti-N estimate") %>%
-  select(samplemonth, pct_mon_mean.w, PROV_5)
-CITF_sum_s<-CITF_sum %>%
-  filter(ab_estimate=="Anti-S estimate") %>%
-  select(samplemonth, pct_mon_mean.w, PROV_5)
-
-CLSA_com50 <-CLSA_com50 %>%
-  left_join(CITF_sum_n, 
-            by = c("samplemonth", "PROV_5")) %>%
-  rename(n_mon=pct_mon_mean.w) %>%
-  select(-ab_estimate) %>%
-  left_join(CITF_sum_s, 
-            by = c("samplemonth", "PROV_5")) %>%
-  rename(s_mon=pct_mon_mean.w) %>%
-  select(-ab_estimate)
-rm(CITF_sum_n, CITF_sum_s)
+# add rolling S/Co into the figure
+p2.10.a<-CLSA_com50 %>%
+  mutate(SER_NUCLEOCAPSID_COV = factor(SER_NUCLEOCAPSID_COV, 
+                                       levels = c(0, 1), 
+                                       labels = c("Negative", "Positive")),
+         SER_ADM_COV = factor(SER_ADM_COV, levels = c(0, 1), labels = c("Venous", "DBS"))
+         ) %>%
+  ggplot(aes(x = start_datetime_COV)) +
+  geom_point(aes(x = start_datetime_COV, y = NUCLEOCAPSID_ANTIBODY, 
+                 color = SER_ADM_COV, shape = SER_NUCLEOCAPSID_COV), alpha=0.6) +
+  geom_line(data=rolling_n_avg,
+            aes(x = start_datetime_COV, y = rolling_avg, color = SER_ADM_COV, 
+                group = SER_ADM_COV), 
+            linewidth = 0.75)+
+  scale_color_manual("", values = c("DBS" = "blue", "Venous" = "red")) +
+  scale_shape_manual("", values = c("Negative" = 1, "Positive" = 16)) +
+  scale_y_log10() + # Add log10 scale to Y-axis
+  scale_x_date(date_breaks = "2 month", date_labels = "%b %Y") +
+  facet_wrap(~ PROV_5) +
+  labs(x = "Sampling Time", y = "Anti-N S/Co Ratio")+
+  theme_bw() + 
+  theme(axis.text.x = element_text(angle = 90))
+  
+p2.10.a
 ```
 
-##### Updated fig w two y axis
 ```{r}
-# Calculate min and max for scaling
-A_min <- min(CLSA_com50$NUCLEOCAPSID_ANTIBODY, na.rm = TRUE)
-A_max <- max(CLSA_com50$NUCLEOCAPSID_ANTIBODY, na.rm = TRUE)
-P_min <- min(CLSA_com50$n_mon, na.rm = TRUE)
-P_max <- max(CLSA_com50$n_mon, na.rm = TRUE)
-
-# Create the plot with secondary Y-axis (Anti-N)
-p2.9.a<-p2.9.a +
-  geom_line(aes(y = A_min + (A_max - A_min) * (CLSA_com50$n_mon - P_min) / (P_max - P_min), group = PROV_5), color = "black") +
-  scale_y_log10(sec.axis = sec_axis(~ P_min + (. - A_min) * (P_max - P_min) / (A_max - A_min),
-                                    name = "Anti-N Seroprevalence",
-                                    breaks = c(0.01,0.05,0.1)))
-
-# Calculate min and max for scaling
-A_min <- min(CLSA_com50$SPIKE_ANTIBODY, na.rm = TRUE)
-A_max <- max(CLSA_com50$SPIKE_ANTIBODY, na.rm = TRUE)
-P_min <- min(CLSA_com50$s_mon, na.rm = TRUE)
-P_max <- max(CLSA_com50$s_mon, na.rm = TRUE)
-
-# Create the plot with secondary Y-axis (Anti-N)
-p2.9.b<-p2.9.b +
-  geom_line(aes(y = A_min + (A_max - A_min) * (CLSA_com50$s_mon - P_min) / (P_max - P_min), group = PROV_5), color = "black") +
-  scale_y_log10(sec.axis = sec_axis(~ P_min + (. - A_min) * (P_max - P_min) / (A_max - A_min),
-                                    name = "Anti-S Seroprevalence",
-                                    breaks = c(0.01, 0.05, 0.1, 0.5, 1.0)))
+# add rolling S/Co into the figure
+p2.10.b<-CLSA_com50 %>%
+  mutate(SER_SPIKE_COV = factor(SER_SPIKE_COV, 
+                                       levels = c(0, 1), 
+                                       labels = c("Negative", "Positive")),
+         SER_ADM_COV = factor(SER_ADM_COV, levels = c(0, 1), labels = c("Venous", "DBS"))
+         ) %>%
+  ggplot(aes(x = start_datetime_COV)) +
+  geom_point(aes(x = start_datetime_COV, y = SPIKE_ANTIBODY, 
+                 color = SER_ADM_COV, shape = SER_SPIKE_COV), alpha=0.6) +
+  geom_line(data=rolling_s_avg,
+            aes(x = start_datetime_COV, y = rolling_avg, color = SER_ADM_COV, 
+                group = SER_ADM_COV), 
+            linewidth = 0.75)+
+  scale_color_manual("", values = c("DBS" = "blue", "Venous" = "red")) +
+  scale_shape_manual("", values = c("Negative" = 1, "Positive" = 16)) +
+  scale_y_log10() + # Add log10 scale to Y-axis
+  scale_x_date(date_breaks = "2 month", date_labels = "%b %Y") +
+  facet_wrap(~ PROV_5) +
+  labs(x = "Sampling Time", y = "Anti-S S/Co Ratio")+
+  theme_bw() + 
+  theme(axis.text.x = element_text(angle = 90))
+  
+p2.10.b
 ```
+
 ```{r}
 #print two plots together
 png(file="../4_output/figs/Fig.S5 Scatterplot.png", 
     width=2400, height=2400, res=300)
-cowplot::plot_grid(p2.9.a, p2.9.b,
+cowplot::plot_grid(p2.10.a, p2.10.b,
                    labels = c("A", "B"),
                    ncol = 1, nrow = 2)
 dev.off()
 ```
 
 
-#### 2.10 Supplemental Table X 
+#### 2.11 Supplemental Table X 
 The table is a set of two 2-by-2 tables (1 anti-N and 1 anti-S), vaccination by sampling methods.
 
 ##### Raw estimates
