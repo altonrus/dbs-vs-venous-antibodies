@@ -6,10 +6,6 @@ editor: visual
 date: 21 June 2023
 ---
 
-## Quarto
-
-Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
-
 ## Running Code
 
 This rmd file will include codes for those purposes:
@@ -22,7 +18,6 @@ This rmd file will include codes for those purposes:
 ```{r}
 library(haven)         # Import csv and xlsx files
 library(dplyr)         # Dataset management
-# library(epiR)          # make epi tables
 ```
 
 ## 1. Import the CLSA Datasets

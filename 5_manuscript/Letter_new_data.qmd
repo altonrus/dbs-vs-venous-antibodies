@@ -41,18 +41,6 @@ library(cowplot)            # merging plots
 library(magick)            # merging plots
 ```
 
-```{r, include=FALSE}
-# Merge .bib files
-bib1<-ReadBib(file = "../5_manuscript/bib files/DBS vs VBS.bib")
-bib2<-ReadBib(file = "../5_manuscript/bib files/Propensity Score Matching.bib")
-bib3<-ReadBib(file = "../5_manuscript/bib files/Assays and S-Co.bib")
-
-m1<-merge(bib1, bib2)
-m1<-merge(m1, bib3, fields.to.check = 'all')
-
-WriteBib(m1, file = "../5_manuscript/biball.bib")
-```
-
 # Letter (500 / 500 Words)
 
 Participant-collected dried blood spots (DBS) are a convenient, minimally invasive alternative to phlebotomist-collected venous samples for population serological surveillance of infectious diseases. Several SARS-CoV-2 serosurveillance studies collected DBS samples through the mail, reaching wider geographic areas, relatively healthier population, and minimizing face-to-face contact during the pandemic [@Zava2021; @Mackett2022; @Meyers2021]. This sample collection approach avoids the logistic issues associated with specimen handling, a common occurrence in venous samples. Prior studies characterize assay accuracy with DBS as 'reliable', based on their high sensitivity and specificity, in paired comparisons with venous samples [@Meyers2021; @Simmonds2011; @Morley2020]. A recent study comparing SARS-CoV-2 IgG results from paired venous and DBS samples concluded performance was "comparable" [@Nikiforuk2022]. However, another study found markedly lower sensitivity on DBS samples, which could be partially mitigated by using a lower threshold for positivity[@Mulchandani2021]. Despite low sensitivity observed in some previous studies, it remains valuable for detecting potential emerging outbreaks when seroprevalence exceeds a specific threshold. In a national SARS-CoV-2 serological study of older Canadians conducted by the Canadian Longitudinal Study on Aging [@Raina2019], participants either mailed a DBS sample or provided a venous sample at a testing center. We analyzed these data to assess for systematic differences in assay findings between DBS and venous

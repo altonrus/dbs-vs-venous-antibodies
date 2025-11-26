@@ -31,7 +31,11 @@ load(file='../1_data/private/CLSA_mncom.RData')
 load(file='../1_data/private/CLSA_com50.RData')
 ```
 
-# ===================== Part I. Propensity Score Weighting ==================
+# ==
+
+# Part I. Propensity Score Weighting 
+
+# ==
 
 ## 1.1 Calculate weights using IPTW
 
@@ -81,7 +85,9 @@ w.02 <- weightit(SER_ADM_COV~age10 + SEX_CLSA +
 # add weights to data
 CLSA_com50.c6$w2.weights<-w.02$weights
 ```
+
 #### Revert the coding on sampling methods: venous as ref (=0)
+
 Rational: While OR have a symmetry where if you odds of positivity for DBS vs. VBS is the reciprocal of odds for VBS vs. DBS, but choice of reference group matters for risk ratio. Since VBS is more the “standard “ or “default”, I’d like to report odds of positivity for DBS vs. VBS, with VBS as the reference, which I believe is the opposite of what you’ve done, and if we’re to report RR and OR then the reference should be the same. I’ve already converted the OR in the results by just taking the reciprocal.
 
 ```{r}
@@ -96,8 +102,8 @@ CLSA_com50.c6<-CLSA_com50.c6 %>%
   rename(SER_ADM_COV = SER_ADM_COV2)
 ```
 
-
 #### PSW model for propensity score
+
 ```{r}
 lmm.w.01<-glm(SER_ADM_COV~age10 + SEX_CLSA +
                              urban_rural +
@@ -110,7 +116,6 @@ lmm.w.01<-glm(SER_ADM_COV~age10 + SEX_CLSA +
             data=CLSA_com50.c6, family = binomial(link="logit"))
 summary(lmm.w.01)
 ```
-
 
 ## 1.2. Analyze weighted data
 
@@ -135,10 +140,10 @@ lmm.06.S %>%
 # OR=1.43 (1.33-1.54)
 ```
 
-
 #### Anti-N&S positivity: Risk ratios
 
 Calculate risk ratios using a log-binomial model.
+
 ```{r}
 
 #NOTE: risk ratios depend which group is coded as the reference
@@ -279,8 +284,11 @@ lmm.OR.S2 %>%
   gtsummary::tbl_regression(exponentiate = T)
 ```
 
+## ==
 
-## ======== Part.II Making Plots and Tables =============
+## Part II. Making Plots and Tables 
+
+## ==
 
 ## 2.1 Figure 1: Weighted eCDF
 
@@ -991,7 +999,9 @@ dev.off()
 ```
 
 #### 2.9 Scatter Plot - supplemental fig
+
 The purpose of this figure is to address the concern of the reviewer's comment no.4. They would like to see how the distribution of pos/neg samples changed overtime across five major regions of CA.
+
 ```{r}
 # The anti-N S/Co figure (panel A)
 p2.9.a<-CLSA_com50 %>%
@@ -1038,6 +1048,7 @@ p2.9.b
 #### 2.10 Modified Fig S5 Scatterplot, the solid lines indicate rolling mean (3-mon average)
 
 ##### Calculate 3-month rolling average
+
 ```{r}
 # Function to calculate the 3-month rolling average for a given month M
 rolling_n <- function(M, data) {
@@ -1146,11 +1157,12 @@ cowplot::plot_grid(p2.10.a, p2.10.b,
 dev.off()
 ```
 
+#### 2.11 Supplemental Table X
 
-#### 2.11 Supplemental Table X 
 The table is a set of two 2-by-2 tables (1 anti-N and 1 anti-S), vaccination by sampling methods.
 
 ##### Raw estimates
+
 ```{r}
 # Anti-N seroprevalance
 CLSA_com50 %>%
@@ -1164,6 +1176,7 @@ CLSA_com50 %>%
 ```
 
 ##### Weighted Test Positivity (EStimated Seroprevalence)
+
 ```{r}
 # Calculate weighted test positivity
 # Anti-N
@@ -1201,10 +1214,9 @@ CLSA_com50.c6 %>%
   )
 ```
 
-
 ## X. Save the edited data
+
 ```{r}
 save(CLSA_com50, file = "../1_data/private/CLSA_com50.RData")
 save(CLSA_com50.c6, file = "../1_data/private/CLSA_com50.c6.RData")
 ```
-
