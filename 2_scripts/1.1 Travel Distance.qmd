@@ -45,11 +45,12 @@ set.api.key("XX")
 #### 1.1 Load shape file
 
 #### Source of the shape file:https://open.canada.ca/data/en/dataset/a883eb14-0c0e-45c4-b8c4-b54c4a819edb
+Notes: Statistic Canada changes the address of those shape files from time to time. If the address above does not work, search for "Provinces/Territories, Cartographic Boundary File" and look for 2016 Census data.
 
 ```{r}
 # Load shape file
 s.sf<-st_read("../1_data/AB_Geo/lfsa000a21a_e.shp")       # FSA file
-pop.sf<-st_read("~/AB_Geo/AB_POP_CNTR/lpc_000a21a_e.shp") # pop center shp
+
 # Now make a subsets
 s.sf.ab<-s.sf[s.sf$PRUID==48,]                            # AB
 s.sf.10<-s.sf[s.sf$PRUID %in% c('10','11','12','13',
@@ -58,7 +59,6 @@ s.sf.10<-s.sf[s.sf$PRUID %in% c('10','11','12','13',
 
 ## Plot the Alberta data
 plot(s.sf.ab$geometry)
-plot(pop.sf.ab$geometry)
 
 ## Plot all FSAs in Canada
 plot(s.sf$geometry)
@@ -81,15 +81,15 @@ ggplot() +
 
 ```{r}
 centroid$coord<-st_transform(centroid$geometry, 4326)
+coords_temp<-st_coordinates(centroid$coord)
 
-# Export as csv
-write.csv(centroid, "~/AB_Geo/FSA_Center.csv", row.names=TRUE)
+# Transform the coordinates that's readable to GMap
+FSA_Center_Converted<-centroid %>%
+  mutate(
+    coord_text = paste0(coords_temp[, 2], ", ", coords_temp[, 1])
+  )
+rm(coords_temp)
 
-# Convert the coordinates manually using Excel
-
-# Imported the converted xlsx file
-library(readxl)
-FSA_Center_Converted <- read_excel("AB_Geo/FSA_Center_Converted.xlsx")
 FSA_Center_small<-select(FSA_Center_Converted, CFSAUID, coord_text)
 FSA_Center_20<-FSA_Center_small[1:20,]
 ```
@@ -196,13 +196,16 @@ ggplot() +
 
 ```{r}
 centroid_10$coord<-st_transform(centroid_10$geometry, 4326)
+coords_temp<-st_coordinates(centroid_10$coord)
 
-# Export as csv
-write.csv(centroid_10, "~/dbs-vs-venous-antibodies/1_data/AB_Geo/FSA_Center_10.csv", row.names=TRUE)
+# Transform the coordinates that's readable to GMap
+centroid_10_cov<-centroid_10 %>%
+  mutate(
+    coord_text = paste0(coords_temp[, 2], ", ", coords_temp[, 1])
+  )
+rm(coords_temp)
 
-# Imported the converted xlsx file
-library(readxl)
-centroid_10_cov <- read_excel("~/dbs-vs-venous-antibodies/1_data/AB_Geo/FSA_Center_10_converted.xlsx")
+# make a subset
 centroid_10s<-select(centroid_10_cov, CFSAUID, coord_text)
 
 # add the coordinate value to CLSA_FSA file
@@ -214,7 +217,7 @@ CLSA_FSA<-merge(CLSA_FSA, centroid_10s, by.x = 'FSA_COVID', by.y = 'CFSAUID',all
 #### 2.3.1 Newfoundland
 
 ```{r}
-set.api.key("AIzaSyAuJVVKUamO_OVHfsUavMN2zzjjQ7sAB9I")
+set.api.key("XX")
 
 # Fix coord for NAs
 CLSA_FSA$alt_loc<-rep(NA,707)

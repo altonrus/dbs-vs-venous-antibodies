@@ -1,11 +1,12 @@
 Files:
-- lfsa000a21a_e.shp is the shape file of each FSAs in Canada.
-- FSA_Center.csv is the exported version of center location data. This file includes converted location with logitudes and latitudes.
-- FSA_Center_Converted.xlsx includes center location coordinates for GMaps to use. Gmap can read the format (XX, -XXX). AB is located in north & west hemisphere.
-- FSA_Center_fixed includes the traveling distance to the testing center (Data Collection Center) located in Calgary, in meters.
+- lfsa000a21a_e.shp is the shape file of each forward sortation area (FSA) in Canada. Source: https://open.canada.ca/data/en/dataset/a883eb14-0c0e-45c4-b8c4-b54c4a819edb
+- FSA_Center_fixed includes:
+  - coord_text: center location coordinates with logitudes and latitudes, converted for GMaps to use. Gmap can read the format (XX, -XXX). AB is located in north & west hemisphere.
+  - the traveling distance to the testing center (Data Collection Center) located in Calgary, in meters.
 
 
 Notes:
+- To load the shape file (.shp), make sure it's located in the same folder along with other files (.shx, .prj, .dbf, .xml).
 - The center point of each polygon was not always located in the polygon (this happened to some U-shaped regions), this can be fixed, but might not be a big problem here.
 - The FSAs located with in 50km should be those around Calgary, those has distance ~300 km should be located in Edmonton. 
 - Few FSAs got NA in their traveling distance var, probably because the center of those FSAs polygon are located in a lake or something. This part was manually fixed using Google Map Website.
