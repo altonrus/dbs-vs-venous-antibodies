@@ -1,7 +1,7 @@
 Files:
 - lfsa000a21a_e.shp is the shape file of each forward sortation area (FSA) in Canada. Source: https://open.canada.ca/data/en/dataset/a883eb14-0c0e-45c4-b8c4-b54c4a819edb
 - FSA_Center_fixed includes:
-  - coord_text: center location coordinates with logitudes and latitudes, converted for GMaps to use. Gmap can read the format (XX, -XXX). AB is located in north & west hemisphere.
+  - coord_text: center location coordinates with logitudes and latitudes, converted for GMaps to use. Gmap can read the format (XX, -XXX). AB is located in north & west hemisphere. The binary "fix_ind" variable indicates if the traveling distance has been manually fixed.
   - the traveling distance to the testing center (Data Collection Center) located in Calgary, in meters.
 
 

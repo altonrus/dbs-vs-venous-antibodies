@@ -160,6 +160,9 @@ FSA_Center_small$Gmap_dist[6]<-893000
 FSA_Center_small$Gmap_dist[11]<-871000
 FSA_Center_small$Gmap_dist[65]<-32000
 FSA_Center_small$Gmap_dist[146]<-812000
+
+## Save a copy
+save(FSA_Center_small, file = "~/dbs-vs-venous-antibodies/1_data/AB_Geo/FSA_Center_fixed.RData")
 ```
 
 ------------------------------------------------------------------------
